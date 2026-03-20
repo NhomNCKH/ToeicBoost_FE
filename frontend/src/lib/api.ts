@@ -1,26 +1,143 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
 
+// Types
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface RefreshTokenData {
+  refreshToken: string;
+}
+
+export interface ApiResponse<T = any> {
+  statusCode: number;
+  message: string;
+  data: T;
+  timestamp: string;
+  path?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+    };
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  exp?: number;
+}
+
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('accessToken');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
+  };
+};
+
 export const api = {
   baseURL: API_BASE_URL,
   
-  // Test health endpoint
+  // Health endpoints
   async health() {
     const response = await fetch('http://144.91.104.237:3001/health');
+    return response.json();
+  },
+
+  async healthDetailed() {
+    const response = await fetch('http://144.91.104.237:3001/');
     return response.json();
   },
   
   // Auth endpoints
   auth: {
-    register: (data: any) => fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    }),
+    async register(data: RegisterData): Promise<ApiResponse> {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
     
-    login: (data: any) => fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
+    async login(data: LoginData): Promise<ApiResponse<AuthResponse>> {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+
+    async refreshToken(data: RefreshTokenData): Promise<ApiResponse> {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+
+    async logout(data: RefreshTokenData): Promise<ApiResponse> {
+      const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+
+    async getProfile(): Promise<ApiResponse<UserProfile>> {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      return response.json();
+    }
+  },
+
+  // Media endpoints
+  media: {
+    async getPresignedUploadUrl(data: { fileName: string; fileType: string }) {
+      const response = await fetch(`${API_BASE_URL}/media/upload`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+
+    async getPresignedGetUrl(data: { fileName: string }) {
+      const response = await fetch(`${API_BASE_URL}/media/presign-get`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    }
   }
 };
