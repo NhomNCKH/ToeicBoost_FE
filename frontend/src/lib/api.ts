@@ -1,4 +1,10 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '/api/proxy/api/v1'  // Use proxy in production to avoid mixed content
+  : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
+
+const HEALTH_URL = process.env.NODE_ENV === 'production'
+  ? '/api/proxy/health'
+  : 'http://144.91.104.237:3001/health';
 
 // Types
 export interface LoginData {
@@ -64,12 +70,15 @@ export const api = {
   
   // Health endpoints
   async health() {
-    const response = await fetch('http://144.91.104.237:3001/health');
+    const response = await fetch(HEALTH_URL);
     return response.json();
   },
 
   async healthDetailed() {
-    const response = await fetch('http://144.91.104.237:3001/');
+    const detailedUrl = process.env.NODE_ENV === 'production' 
+      ? '/api/proxy/' 
+      : 'http://144.91.104.237:3001/';
+    const response = await fetch(detailedUrl);
     return response.json();
   },
   
