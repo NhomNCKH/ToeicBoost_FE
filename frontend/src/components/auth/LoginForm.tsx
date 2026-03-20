@@ -25,11 +25,15 @@ export default function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormPr
     setIsLoading(true);
     setError('');
 
+    console.log('Form submitted with:', formData);
     const result = await login(formData);
+    console.log('Login result:', result);
     
     if (result.success) {
+      console.log('Login successful, calling onSuccess');
       onSuccess?.();
     } else {
+      console.log('Login failed:', result.message);
       setError(result.message);
     }
     

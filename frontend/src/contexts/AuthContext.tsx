@@ -52,7 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (data: LoginData) => {
     try {
+      console.log('Attempting login with:', data);
       const response = await api.auth.login(data);
+      console.log('Login response:', response);
       
       if (response.statusCode === 200 && response.data.success) {
         const { user: userData, accessToken, refreshToken } = response.data.data;
@@ -64,8 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set user data
         setUser(userData);
         
+        console.log('Login successful, user set:', userData);
         return { success: true, message: response.data.message };
       } else {
+        console.log('Login failed:', response);
         return { success: false, message: response.message || 'Đăng nhập thất bại' };
       }
     } catch (error) {
