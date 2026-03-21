@@ -11,7 +11,7 @@ export function useAuth() {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = authService.getAccessToken();
+      const token = authService.getRefreshToken();
       const userData = authService.getUser();
       
       if (token && userData) {
@@ -25,7 +25,7 @@ export function useAuth() {
   }, []);
 
   const logout = async () => {
-    const token = authService.getAccessToken();
+    const token = authService.getRefreshToken();
     if (token) {
       await authService.logout(token);
     }

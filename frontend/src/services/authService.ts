@@ -1,5 +1,5 @@
 // src/services/authService.ts
-const API_BASE_URL = 'http://localhost:8000/api_v1'; // Thay đổi theo URL backend của bạn
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api_v1';
 
 export interface LoginRequest {
   email: string;
@@ -13,26 +13,19 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  success: boolean;
+  statusCode: number;
   message: string;
   data: {
     user: {
-      id: string;
+      id: number;
       name: string;
       email: string;
-      role: 'admin' | 'learner';
-      status: string;
+      role: string;
     };
     accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
+    refreshToken?: string;
+    expiresIn?: number;
   };
-}
-
-export interface ErrorResponse {
-  statusCode: number;
-  error: string;
-  message: string;
   timestamp: string;
   path: string;
 }
@@ -40,6 +33,8 @@ export interface ErrorResponse {
 export const authService = {
   // Đăng nhập
   async login(data: LoginRequest): Promise<AuthResponse> {
+    console.log('Calling login API:', `${API_BASE_URL}/auth/login`);
+    
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -49,6 +44,7 @@ export const authService = {
     });
 
     const result = await response.json();
+    console.log('Login response:', result);
 
     if (!response.ok) {
       throw result;
@@ -59,6 +55,8 @@ export const authService = {
 
   // Đăng ký
   async register(data: RegisterRequest): Promise<AuthResponse> {
+    console.log('Calling register API:', `${API_BASE_URL}/auth/register`);
+    
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
@@ -68,6 +66,7 @@ export const authService = {
     });
 
     const result = await response.json();
+    console.log('Register response:', result);
 
     if (!response.ok) {
       throw result;
@@ -109,9 +108,11 @@ export const authService = {
   },
 
   // Lưu token vào localStorage
-  saveTokens(accessToken: string, refreshToken: string) {
+  saveTokens(accessToken: string, refreshToken?: string) {
     localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
+    if (refreshToken) {
+      localStorage.setItem('refresh_token', refreshToken);
+    }
   },
 
   // Lấy token
@@ -138,7 +139,11 @@ export const authService = {
   getUser(): any | null {
     const userStr = localStorage.getItem('user');
     if (userStr) {
-      return JSON.parse(userStr);
+      try {
+        return JSON.parse(userStr);
+      } catch {
+        return null;
+      }
     }
     return null;
   },

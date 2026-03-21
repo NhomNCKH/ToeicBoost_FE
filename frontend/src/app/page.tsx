@@ -30,65 +30,97 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      if (isLogin) {
-        // Đăng nhập
-        const response = await authService.login({ email, password });
+  try {
+    if (isLogin) {
+      // Đăng nhập
+      const response = await authService.login({ email, password });
+      
+      console.log("Login response:", response);
+      
+      // Kiểm tra statusCode === 200 là thành công
+      if (response.statusCode === 200 && response.data) {
+        const { user, accessToken, refreshToken } = response.data;
         
-        if (response.success) {
+        console.log("User data:", user);
+        console.log("Access token:", accessToken);
+        
+        if (user && accessToken) {
           // Lưu token và thông tin user
-          authService.saveTokens(response.data.accessToken, response.data.refreshToken);
-          authService.saveUser(response.data.user);
+          localStorage.setItem('access_token', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refresh_token', refreshToken);
+          }
+          localStorage.setItem('user', JSON.stringify(user));
           
           // Chuyển hướng theo role
-          if (response.data.user.role === "admin") {
+          if (user.role === "admin") {
             router.push("/admin/dashboard");
+          } else if (user.role === "learner") {
+            router.push("/student/dashboard");
           } else {
+            // Nếu không có role, mặc định là student
             router.push("/student/dashboard");
           }
+        } else {
+          setError("Dữ liệu đăng nhập không hợp lệ");
         }
       } else {
-        // Đăng ký
-        const response = await authService.register({ name, email, password });
-        
-        if (response.success) {
-          // Sau khi đăng ký thành công, tự động đăng nhập
-          const loginResponse = await authService.login({ email, password });
-          
-          if (loginResponse.success) {
-            authService.saveTokens(loginResponse.data.accessToken, loginResponse.data.refreshToken);
-            authService.saveUser(loginResponse.data.user);
-            
-            if (loginResponse.data.user.role === "admin") {
-              router.push("/admin/dashboard");
-            } else {
-              router.push("/student/dashboard");
-            }
-          }
-        }
+        setError(response.message || "Đăng nhập thất bại");
       }
-    } catch (err: any) {
-      console.error("Auth error:", err);
+    } else {
+      // Đăng ký
+      const response = await authService.register({ name, email, password });
       
-      // Xử lý các loại lỗi từ backend
-      if (err.statusCode === 401) {
-        setError("Email hoặc mật khẩu không đúng");
-      } else if (err.statusCode === 403) {
-        setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
-      } else if (err.statusCode === 409 && err.message.includes("Email already registered")) {
-        setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
+      console.log("Register response:", response);
+      
+      if (response.statusCode === 200 && response.data) {
+        // Tự động đăng nhập sau khi đăng ký
+        const loginResponse = await authService.login({ email, password });
+        
+        if (loginResponse.statusCode === 200 && loginResponse.data) {
+          const { user, accessToken, refreshToken } = loginResponse.data;
+          
+          if (user && accessToken) {
+            localStorage.setItem('access_token', accessToken);
+            if (refreshToken) {
+              localStorage.setItem('refresh_token', refreshToken);
+            }
+            localStorage.setItem('user', JSON.stringify(user));
+            router.push("/student/dashboard");
+          } else {
+            setError("Đăng nhập sau đăng ký thất bại");
+          }
+        } else {
+          setError(loginResponse.message || "Đăng nhập thất bại");
+        }
       } else {
-        setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
+        setError(response.message || "Đăng ký thất bại");
       }
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err: any) {
+    console.error("Auth error:", err);
+    
+    // Xử lý các loại lỗi từ backend
+    if (err.statusCode === 400) {
+      setError("Email hoặc mật khẩu không đúng");
+    } else if (err.statusCode === 403) {
+      setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
+    } else if (err.statusCode === 409) {
+      setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
+    } else if (err.message) {
+      setError(err.message);
+    } else {
+      setError("Có lỗi xảy ra. Vui lòng thử lại");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
@@ -152,7 +184,7 @@ export default function HomePage() {
       <main className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left side - Hero Content (giữ nguyên) */}
+            {/* Left side - Hero Content */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
