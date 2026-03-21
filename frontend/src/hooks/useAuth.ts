@@ -1,7 +1,7 @@
 // src/hooks/useAuth.ts
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/services/authService';
+import { api } from '@/services/api';
 
 export function useAuth() {
   const router = useRouter();
@@ -11,12 +11,16 @@ export function useAuth() {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = authService.getRefreshToken();
-      const userData = authService.getUser();
+      const token = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
       
       if (token && userData) {
-        setUser(userData);
-        setIsAuthenticated(true);
+        try {
+          setUser(JSON.parse(userData));
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error('Error parsing user:', e);
+        }
       }
       setLoading(false);
     };
@@ -25,11 +29,17 @@ export function useAuth() {
   }, []);
 
   const logout = async () => {
-    const token = authService.getRefreshToken();
-    if (token) {
-      await authService.logout(token);
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        await api.auth.logout({ refreshToken });
+      } catch (e) {
+        console.error('Logout error:', e);
+      }
     }
-    authService.clearTokens();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
     router.push('/');

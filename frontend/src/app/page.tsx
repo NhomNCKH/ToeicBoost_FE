@@ -19,7 +19,7 @@ import {
   Zap,
   AlertCircle,
 } from "lucide-react";
-import { authService } from "@/services/authService";
+import { api } from "@/services/api"; // Dùng file api.ts có sẵn
 
 export default function HomePage() {
   const router = useRouter();
@@ -37,33 +37,25 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     if (isLogin) {
-      // Đăng nhập
-      const response = await authService.login({ email, password });
+      // Đăng nhập - dùng any để tránh lỗi type
+      const response: any = await api.auth.login({ email, password });
       
       console.log("Login response:", response);
       
-      // Kiểm tra statusCode === 200 là thành công
       if (response.statusCode === 200 && response.data) {
         const { user, accessToken, refreshToken } = response.data;
         
-        console.log("User data:", user);
+        console.log("User:", user);
         console.log("Access token:", accessToken);
         
         if (user && accessToken) {
-          // Lưu token và thông tin user
-          localStorage.setItem('access_token', accessToken);
-          if (refreshToken) {
-            localStorage.setItem('refresh_token', refreshToken);
-          }
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', refreshToken);
           localStorage.setItem('user', JSON.stringify(user));
           
-          // Chuyển hướng theo role
           if (user.role === "admin") {
             router.push("/admin/dashboard");
-          } else if (user.role === "learner") {
-            router.push("/student/dashboard");
           } else {
-            // Nếu không có role, mặc định là student
             router.push("/student/dashboard");
           }
         } else {
@@ -74,29 +66,22 @@ const handleSubmit = async (e: React.FormEvent) => {
       }
     } else {
       // Đăng ký
-      const response = await authService.register({ name, email, password });
+      const response: any = await api.auth.register({ name, email, password });
       
       console.log("Register response:", response);
       
-      if (response.statusCode === 200 && response.data) {
-        // Tự động đăng nhập sau khi đăng ký
-        const loginResponse = await authService.login({ email, password });
+      if (response.statusCode === 200) {
+        const loginResponse: any = await api.auth.login({ email, password });
         
         if (loginResponse.statusCode === 200 && loginResponse.data) {
           const { user, accessToken, refreshToken } = loginResponse.data;
           
-          if (user && accessToken) {
-            localStorage.setItem('access_token', accessToken);
-            if (refreshToken) {
-              localStorage.setItem('refresh_token', refreshToken);
-            }
-            localStorage.setItem('user', JSON.stringify(user));
-            router.push("/student/dashboard");
-          } else {
-            setError("Đăng nhập sau đăng ký thất bại");
-          }
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', refreshToken);
+          localStorage.setItem('user', JSON.stringify(user));
+          router.push("/student/dashboard");
         } else {
-          setError(loginResponse.message || "Đăng nhập thất bại");
+          setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
         }
       } else {
         setError(response.message || "Đăng ký thất bại");
@@ -105,22 +90,20 @@ const handleSubmit = async (e: React.FormEvent) => {
   } catch (err: any) {
     console.error("Auth error:", err);
     
-    // Xử lý các loại lỗi từ backend
     if (err.statusCode === 400) {
       setError("Email hoặc mật khẩu không đúng");
     } else if (err.statusCode === 403) {
-      setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
+      setError("Tài khoản tạm thời bị khóa");
     } else if (err.statusCode === 409) {
-      setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
-    } else if (err.message) {
-      setError(err.message);
+      setError("Email đã được đăng ký");
     } else {
-      setError("Có lỗi xảy ra. Vui lòng thử lại");
+      setError(err.message || "Có lỗi xảy ra");
     }
   } finally {
     setLoading(false);
   }
 };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
