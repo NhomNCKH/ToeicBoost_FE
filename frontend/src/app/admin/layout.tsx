@@ -1,226 +1,260 @@
-'use client';
+// app/admin/layout.tsx
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Award, 
-  Shield, 
-  BarChart3, 
-  Settings, 
-  LogOut, 
-  Leaf, 
-  Blocks 
-} from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  FileText,
+  Award,
+  Settings,
+  LogOut,
+  Leaf,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  BarChart3,
+  Database,
+  TrendingUp,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Kiểm tra xác thực - LUÔN GỌI useEffect TRƯỚC
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      router.push('/');
+      router.push("/login");
     }
-    if (!loading && user && user.role !== 'admin') {
-      router.push('/student/dashboard');
+    if (!loading && user && user.role !== "admin") {
+      router.push("/student/dashboard");
     }
   }, [loading, isAuthenticated, user, router]);
 
-  // Nếu là trang welcome, không hiển thị layout
-  if (pathname === '/admin') {
-    return <>{children}</>;
-  }
-
-  // Hiển thị loading
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Nếu chưa xác thực hoặc không phải admin, không hiển thị gì
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return null;
-  }
-
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-    { icon: Users, label: 'Quản lý học viên', href: '/admin/students' },
-    { icon: Award, label: 'Chứng chỉ', href: '/admin/certificates' },
-    { icon: Blocks, label: 'Blockchain', href: '/admin/blockchain' },
-    { icon: BarChart3, label: 'Thống kê', href: '/admin/analytics' },
-    { icon: Shield, label: 'Bảo mật', href: '/admin/security' },
-    { icon: Settings, label: 'Cấu hình', href: '/admin/settings' },
+    {
+      icon: LayoutDashboard,
+      label: "Tổng quan",
+      href: "/admin/dashboard",
+      description: "Thống kê hệ thống",
+    },
+    {
+      icon: Users,
+      label: "Quản lý người dùng",
+      href: "/admin/users",
+      description: "Quản lý học viên",
+    },
+    {
+      icon: BookOpen,
+      label: "Quản lý câu hỏi",
+      href: "/admin/questions",
+      description: "Thêm/sửa câu hỏi",
+    },
+    {
+      icon: FileText,
+      label: "Quản lý đề thi",
+      href: "/admin/exams",
+      description: "Tạo đề thi",
+    },
+    {
+      icon: Award,
+      label: "Cấp chứng chỉ",
+      href: "/admin/certificates",
+      description: "Cấp và xác thực",
+    },
+    {
+      icon: BarChart3,
+      label: "Phân tích",
+      href: "/admin/analytics",
+      description: "Báo cáo chi tiết",
+    },
+    {
+      icon: Settings,
+      label: "Cấu hình",
+      href: "/admin/settings",
+      description: "Cài đặt hệ thống",
+    },
   ];
 
   const handleLogout = async () => {
     await logout();
+    router.push("/");
   };
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-      {/* Sidebar */}
-      <div style={{ 
-        width: '256px', 
-        background: 'linear-gradient(to bottom, #065f46, #115e59)',
-        color: 'white',
-        position: 'fixed',
-        height: '100vh',
-        padding: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            background: 'rgba(255,255,255,0.2)', 
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Leaf size={24} color="white" />
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>EduChain</div>
-            <div style={{ fontSize: '12px', color: '#a7f3d0' }}>Admin Panel</div>
-          </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-emerald-600">Đang tải...</p>
         </div>
-
-        {/* Hiển thị thông tin admin */}
-        <div style={{
-          padding: '12px 16px',
-          marginBottom: '24px',
-          background: 'rgba(255,255,255,0.1)',
-          borderRadius: '12px',
-          fontSize: '14px'
-        }}>
-          <div style={{ color: '#d1fae5' }}>Xin chào,</div>
-          <div style={{ fontWeight: 'bold' }}>{user?.name || 'Admin'}</div>
-          <div style={{ fontSize: '12px', color: '#a7f3d0', marginTop: '4px' }}>
-            {user?.email}
-          </div>
-        </div>
-
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  color: isActive ? 'white' : '#d1fae5',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <item.icon size={20} />
-                <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
-              </Link>
-            );
-          })}
-
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              color: '#d1fae5',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              marginTop: '32px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <LogOut size={20} />
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>Đăng xuất</span>
-          </button>
-        </nav>
       </div>
+    );
+  }
 
-      {/* Main content */}
-      <div style={{ marginLeft: '256px', width: '100%' }}>
-        {/* Header */}
-        <header style={{ 
-          background: 'white', 
-          borderBottom: '1px solid #e5e7eb',
-          padding: '16px 24px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 30
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937' }}>
-              {menuItems.find(item => item.href === pathname)?.label || 'Dashboard'}
-            </h2>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px',
-                padding: '6px 12px',
-                background: '#d1fae5',
-                borderRadius: '9999px'
-              }}>
-                <Shield size={16} color="#047857" />
-                <span style={{ fontSize: '12px', fontWeight: '500', color: '#047857' }}>Admin</span>
+  if (!isAuthenticated || user?.role !== "admin") return null;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileMenuOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
+      >
+        <Menu className="w-6 h-6 text-emerald-600" />
+      </button>
+
+      {/* Sidebar Overlay */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        />
+      )}
+
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{
+          width: sidebarCollapsed ? "80px" : "280px",
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={`fixed left-0 top-0 h-full bg-gradient-to-b from-emerald-800 to-teal-800 shadow-2xl z-40 ${
+          mobileMenuOpen ? "block" : "hidden lg:block"
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          {/* Logo */}
+          <div className="p-6 border-b border-emerald-700/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Leaf className="w-6 h-6 text-white" />
               </div>
-              
-              <div style={{
-                width: '32px',
-                height: '32px',
-                background: '#059669',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                {user?.name?.charAt(0) || 'A'}
-              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <div className="text-white font-bold text-xl">EduChain</div>
+                  <div className="text-emerald-300 text-xs">Admin Panel</div>
+                </div>
+              )}
             </div>
           </div>
-        </header>
 
-        {/* Content */}
-        <div style={{ padding: '24px' }}>
-          {children}
+          {/* Admin Info */}
+          <div className="p-4 border-b border-emerald-700/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                {user?.name?.charAt(0) || "A"}
+              </div>
+              {!sidebarCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">{user?.name}</p>
+                  <p className="text-emerald-300 text-xs truncate">Quản trị viên</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 py-6 overflow-y-auto">
+            <div className="px-3 space-y-1">
+              {menuItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                      isActive
+                        ? "bg-white/20 text-white shadow-lg"
+                        : "text-emerald-100 hover:bg-white/10"
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 ${isActive ? "text-white" : ""}`} />
+                    {!sidebarCollapsed && (
+                      <div className="flex-1">
+                        <span className="text-sm font-medium">{item.label}</span>
+                        <p className="text-xs text-emerald-300/70 truncate">
+                          {item.description}
+                        </p>
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-emerald-700/50 space-y-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex w-full items-center gap-3 px-3 py-2 rounded-xl text-emerald-100 hover:bg-white/10 transition-colors"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5" />
+              )}
+              {!sidebarCollapsed && <span className="text-sm">Thu gọn</span>}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-3 py-2 rounded-xl text-emerald-100 hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              {!sidebarCollapsed && <span className="text-sm">Đăng xuất</span>}
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.aside>
+
+      {/* Main Content */}
+      <main
+        className={`transition-all duration-300 ${
+          sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+        }`}
+      >
+        <div className="min-h-screen">
+          {/* Header */}
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+            <div className="px-6 py-4 flex justify-between items-center">
+              <h1 className="text-xl font-semibold text-gray-800">
+                {menuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+              </h1>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full">
+                  <Shield className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-medium text-emerald-700">Admin</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {user?.name?.charAt(0) || "A"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Content */}
+          <div className="p-6">{children}</div>
+        </div>
+      </main>
     </div>
   );
 }
