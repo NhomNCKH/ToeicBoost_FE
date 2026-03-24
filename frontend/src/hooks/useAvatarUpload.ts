@@ -1,62 +1,54 @@
-// src/hooks/useAvatarUpload.ts
 import { useState } from 'react';
-import { api } from '@/services/api';
+import { apiClient } from '@/lib/api-client';
 
 export const useAvatarUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadAvatar = async (file: File, userId: string): Promise<string | null> => {
+  const uploadAvatar = async (file: File): Promise<string | null> => {
     setUploading(true);
     setProgress(0);
     setError(null);
 
     try {
-      // Bước 1: Lấy pre-signed URL để upload
-      const fileName = `avatars/${userId}/${Date.now()}_${file.name}`;
-      const presignedRes = await api.media.getPresignedUploadUrl({
-        fileName,
-        fileType: file.type
+      const presignRes = await apiClient.media.getPresignedUploadUrl({
+        fileName: file.name,
+        contentType: file.type,
+        category: 'avatar',
       });
 
-      if (presignedRes.statusCode !== 200) {
-        throw new Error(presignedRes.message || 'Không thể lấy pre-signed URL');
+      if (presignRes.statusCode !== 200) {
+        throw new Error(presignRes.message || 'Khong the lay presigned URL');
       }
 
-      setProgress(30);
+      const { signedPutUrl, s3Key } = presignRes.data;
+      setProgress(25);
 
-      // Bước 2: Upload trực tiếp lên S3
-      const uploadRes = await fetch(presignedRes.data.url, {
+      const s3Res = await fetch(signedPutUrl, {
         method: 'PUT',
         body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
+        headers: { 'Content-Type': file.type },
       });
 
-      if (!uploadRes.ok) {
-        throw new Error('Upload lên S3 thất bại');
+      if (!s3Res.ok) {
+        throw new Error('Upload len S3 that bai');
       }
 
-      setProgress(80);
+      setProgress(75);
 
-      // Bước 3: Xác nhận với backend
-      const confirmRes = await api.auth.confirmAvatarUpload({
-        s3Key: presignedRes.data.key || fileName
-      });
+      const attachRes = await apiClient.auth.attachAvatarFromS3(s3Key);
 
-      if (confirmRes.statusCode !== 200) {
-        throw new Error(confirmRes.message || 'Xác nhận upload thất bại');
+      if (attachRes.statusCode !== 200) {
+        throw new Error(attachRes.message || 'Cap nhat avatar that bai');
       }
 
       setProgress(100);
 
-      // Trả về avatar URL (có thể là presigned URL hoặc public URL)
-      return confirmRes.data?.avatarUrl || null;
-      
+      const avatarUrl = (attachRes.data as any)?.avatarUrl as string | undefined;
+      return avatarUrl ?? null;
     } catch (err: any) {
-      setError(err.message || 'Upload avatar thất bại');
+      setError(err.message || 'Upload avatar that bai');
       return null;
     } finally {
       setUploading(false);

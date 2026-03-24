@@ -1,17 +1,18 @@
 // app/admin/exams/api/examApi.ts
-import { api } from "@/services/api";
+// Dùng apiClient thay vì raw fetch để tái sử dụng auth headers
+import { apiClient } from '@/lib/api-client';
 
 export interface ExamTemplate {
   id: string;
   name: string;
   description: string;
-  status: "draft" | "published" | "archived";
-  type: "full" | "mini";
-  sections: any[];
-  rules: any[];
+  status: 'draft' | 'published' | 'archived';
+  type: string;
+  sections: unknown[];
+  rules: unknown[];
   totalQuestions: number;
   duration: number;
-  difficulty: "easy" | "medium" | "hard";
+  difficulty: string;
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
@@ -20,251 +21,52 @@ export interface ExamTemplate {
   tags: string[];
 }
 
-export interface ApiResponse<T = any> {
-  statusCode: number;
-  message: string;
-  data: T;
-  timestamp: string;
-  path?: string;
-}
-
 export const examApi = {
-  // Get all exam templates
-  getAll: async (params?: { status?: string; type?: string; search?: string }) => {
-    // Build query string from params
-    const queryString = params 
-      ? '?' + new URLSearchParams(
-          Object.fromEntries(
-            Object.entries(params).filter(([_, v]) => v !== undefined && v !== 'all')
-          )
-        ).toString()
-      : '';
-    
-    const response = await fetch(`${api.baseURL}/admin/exam-templates${queryString}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  getAll: (params?: { status?: string; type?: string; search?: string }) =>
+    apiClient.admin.examTemplate.list(params),
 
-  // Get exam template by id
-  getById: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  getById: (id: string) =>
+    apiClient.admin.examTemplate.get(id),
 
-  // Create exam template
-  create: async (data: Partial<ExamTemplate>) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
-  },
+  create: (data: Partial<ExamTemplate>) =>
+    apiClient.admin.examTemplate.create(data as Record<string, unknown>),
 
-  // Update exam template (PATCH)
-  update: async (id: string, data: Partial<ExamTemplate>) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
-  },
+  update: (id: string, data: Partial<ExamTemplate>) =>
+    apiClient.admin.examTemplate.update(id, data as Record<string, unknown>),
 
-  // Delete exam template (only draft)
-  delete: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  delete: (id: string) =>
+    apiClient.admin.examTemplate.delete(id),
 
-  // Update sections (PUT)
-  updateSections: async (id: string, sections: any[]) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/sections`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify({ sections }),
-    });
-    return response.json();
-  },
+  updateSections: (id: string, sections: unknown[]) =>
+    apiClient.admin.examTemplate.replaceSections(id, sections),
 
-  // Update rules (PUT)
-  updateRules: async (id: string, rules: any[]) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/rules`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify({ rules }),
-    });
-    return response.json();
-  },
+  updateRules: (id: string, rules: unknown[]) =>
+    apiClient.admin.examTemplate.replaceRules(id, rules),
 
-  // Manual add items
-  addItemsManual: async (id: string, items: any[]) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/items/manual`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify({ items }),
-    });
-    return response.json();
-  },
+  addItemsManual: (id: string, items: unknown[]) =>
+    apiClient.admin.examTemplate.addManualItems(id, items),
 
-  // Auto fill items
-  autoFillItems: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/items/auto-fill`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  autoFillItems: (id: string) =>
+    apiClient.admin.examTemplate.autoFillItems(id),
 
-  // Reorder items
-  reorderItems: async (id: string, items: { itemId: string; order: number }[]) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/items/reorder`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-      body: JSON.stringify({ items }),
-    });
-    return response.json();
-  },
+  reorderItems: (id: string, items: { itemId: string; order: number }[]) =>
+    apiClient.admin.examTemplate.reorderItems(id, items),
 
-  // Remove item
-  removeItem: async (id: string, itemId: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/items/${itemId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  removeItem: (id: string, itemId: string) =>
+    apiClient.admin.examTemplate.deleteItem(id, itemId),
 
-  // Validate exam
-  validate: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/validate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  validate: (id: string) =>
+    apiClient.admin.examTemplate.validate(id),
 
-  // Preview exam
-  preview: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/preview`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  preview: (id: string) =>
+    apiClient.admin.examTemplate.preview(id),
 
-  // Publish exam
-  publish: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/publish`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  publish: (id: string) =>
+    apiClient.admin.examTemplate.publish(id),
 
-  // Archive exam
-  archive: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/archive`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  archive: (id: string) =>
+    apiClient.admin.examTemplate.archive(id),
 
-  // Duplicate exam
-  duplicate: async (id: string) => {
-    const response = await fetch(`${api.baseURL}/admin/exam-templates/${id}/duplicate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken') && { 
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}` 
-        }),
-      },
-    });
-    return response.json();
-  },
+  duplicate: (id: string) =>
+    apiClient.admin.examTemplate.duplicate(id),
 };

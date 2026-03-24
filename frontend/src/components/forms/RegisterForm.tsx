@@ -65,7 +65,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     setLoading(true);
 
     try {
-      await register(name, email, password);
+      await register({ name, email, password });
       onSuccess?.();
     } catch (err: any) {
       if (err.statusCode === 409) {

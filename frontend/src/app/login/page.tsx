@@ -23,11 +23,12 @@ import {
   Quote,
 } from "lucide-react";
 import Link from "next/link";
-import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login } = useAuth();
   const redirect = searchParams.get("redirect") || "/student/dashboard";
   
   const [email, setEmail] = useState("");
@@ -41,38 +42,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response: any = await apiClient.auth.login({ email, password });
+      const res = await login({ email, password });
 
-      if (response.statusCode === 200) {
-        const user = response.data?.user || response.data?.data?.user;
-        const accessToken = response.data?.accessToken || response.data?.data?.accessToken;
-        const refreshToken = response.data?.refreshToken || response.data?.data?.refreshToken;
+      if (res.success) {
+        // Lấy role từ localStorage vì login() đã lưu vào đó
+        const storedUser = localStorage.getItem("user");
+        const user = storedUser ? JSON.parse(storedUser) : null;
 
-        if (user && accessToken) {
-          localStorage.setItem("accessToken", accessToken);
-          localStorage.setItem("refreshToken", refreshToken);
-          localStorage.setItem("user", JSON.stringify(user));
+        const isAdminRole = ["admin", "superadmin", "org_admin"].includes(user?.role || "");
 
-          if (user.role === "admin") {
-            router.push("/admin/dashboard");
-          } else {
-            router.push(redirect);
-          }
+        if (isAdminRole) {
+          router.push("/admin/dashboard");
         } else {
-          setError("Dữ liệu đăng nhập không hợp lệ");
+          router.push(redirect);
         }
       } else {
-        setError(response.message || "Đăng nhập thất bại");
+        setError(res.message);
       }
     } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.statusCode === 400) {
-        setError("Email hoặc mật khẩu không đúng");
-      } else if (err.statusCode === 403) {
-        setError("Tài khoản tạm thời bị khóa. Vui lòng thử lại sau");
-      } else {
-        setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
-      }
+      setError(err.message || "Có lỗi xảy ra. Vui lòng thử lại");
     } finally {
       setLoading(false);
     }

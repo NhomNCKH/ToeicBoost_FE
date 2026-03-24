@@ -3,8 +3,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'learner' | 'instructor';
-  status: 'active' | 'inactive' | 'banned';
+  role: 'admin' | 'org_admin' | 'instructor' | 'curator' | 'learner';
+  status: 'pending_verification' | 'active' | 'suspended' | 'deleted';
   avatarUrl?: string;
   phone?: string;
   birthday?: string;

@@ -7,7 +7,7 @@ export const calculateStats = (templates: ExamTemplate[]): ExamStats => {
     published: templates.filter(t => t.status === "published").length,
     draft: templates.filter(t => t.status === "draft").length,
     archived: templates.filter(t => t.status === "archived").length,
-    totalAttempts: templates.reduce((acc, t) => acc + (t.usageCount || 0), 0),
+    totalAttempts: 0,
   };
 };
 

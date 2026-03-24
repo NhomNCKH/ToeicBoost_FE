@@ -32,18 +32,19 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/login");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (user && !["admin", "superadmin", "org_admin"].includes(user.role)) {
+        router.push("/student/dashboard");
+      }
     }
-    if (!loading && user && user.role !== "admin") {
-      router.push("/student/dashboard");
-    }
-  }, [loading, isAuthenticated, user, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   const menuItems = [
     {
@@ -51,51 +52,74 @@ export default function AdminLayout({
       label: "Tổng quan",
       href: "/admin/dashboard",
       description: "Thống kê hệ thống",
+      permission: "dashboard.view",
     },
     {
       icon: Users,
       label: "Quản lý người dùng",
       href: "/admin/users",
       description: "Quản lý học viên",
+      permission: "users.read",
     },
     {
       icon: BookOpen,
       label: "Quản lý câu hỏi",
       href: "/admin/questions",
       description: "Thêm/sửa câu hỏi",
+      permission: "questions.manage",
     },
     {
       icon: FileText,
       label: "Quản lý đề thi",
       href: "/admin/exams",
       description: "Tạo đề thi",
+      permission: "exam_templates.manage",
     },
     {
       icon: Award,
       label: "Cấp chứng chỉ",
       href: "/admin/certificates",
       description: "Cấp và xác thực",
+      permission: "credentials.manage",
     },
     {
       icon: BarChart3,
       label: "Phân tích",
       href: "/admin/analytics",
       description: "Báo cáo chi tiết",
+      permission: "audit.view",
     },
     {
       icon: Settings,
-      label: "Cấu hình",
+      label: "Cấu hình hệ thống",
       href: "/admin/settings",
       description: "Cài đặt hệ thống",
+      permission: "settings.manage",
     },
-  ];
+  ].filter(item => {
+    // 1. Superadmin luôn thấy tất cả
+    if (user?.role === "superadmin") return true;
+    
+    // 2. Nếu không có yêu cầu permission cụ thể thì hiện
+    if (!item.permission) return true;
+    
+    // 3. Kiểm tra permission từ mảng permissions phẳng (nếu có)
+    if (user?.permissions?.includes(item.permission)) return true;
+    
+    // 4. Kiểm tra permission từ mảng roles (nếu BE trả về lồng nhau)
+    const hasRolePermission = (user as any)?.roles?.some((role: any) => 
+      role.permissions?.some((p: any) => p.code === item.permission)
+    );
+    
+    return hasRolePermission;
+  });
 
   const handleLogout = async () => {
     await logout();
     router.push("/");
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
         <div className="text-center">
@@ -106,7 +130,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated || user?.role !== "admin") return null;
+  if (!isAuthenticated || !["admin", "superadmin", "org_admin"].includes(user?.role || "")) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -240,7 +264,9 @@ export default function AdminLayout({
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full">
                   <Shield className="w-4 h-4 text-emerald-600" />
-                  <span className="text-xs font-medium text-emerald-700">Admin</span>
+                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-tighter">
+                    {user?.role === 'superadmin' ? 'Super Admin' : user?.role === 'org_admin' ? 'Org Admin' : 'Admin'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">

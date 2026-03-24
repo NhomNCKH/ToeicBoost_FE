@@ -17,10 +17,11 @@ export function useExamValidation() {
     setValidating(true);
     try {
       const response = await examApi.validate(id);
+      const data = (response as any)?.data ?? response;
       setValidationResult({
-        isValid: response.isValid || false,
-        errors: response.errors || [],
-        warnings: response.warnings || [],
+        isValid: data.isValid ?? data.valid ?? false,
+        errors: data.errors || [],
+        warnings: data.warnings || [],
       });
       return response;
     } catch (error) {

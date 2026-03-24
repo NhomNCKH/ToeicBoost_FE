@@ -1,47 +1,50 @@
 // app/admin/exams/types/index.ts
+// Synced with BE ExamTemplate entity fields
+
 export interface ExamTemplate {
   id: string;
+  code: string;
   name: string;
-  description: string;
+  description?: string;
   status: "draft" | "published" | "archived";
-  type: "full" | "mini";
-  sections: ExamSection[];
-  rules: ExamRule[];
+  mode: "practice" | "mock_test" | "official_exam";
+  totalDurationSec: number;
   totalQuestions: number;
-  duration: number;
-  difficulty: "easy" | "medium" | "hard";
+  instructions?: string;
+  shuffleQuestionOrder?: boolean;
+  shuffleOptionOrder?: boolean;
   createdAt: string;
   updatedAt: string;
-  publishedAt?: string;
-  usageCount: number;
-  avgScore: number;
-  tags: string[];
+  sections?: ExamSection[];
+  rules?: ExamRule[];
+  items?: ExamItem[];
 }
 
 export interface ExamSection {
-  id: string;
-  name: string;
-  type: "reading" | "writing";
+  id?: string;
   part: string;
-  itemCount: number;
-  items: ExamItem[];
-  order: number;
+  sectionOrder: number;
+  expectedGroupCount: number;
+  expectedQuestionCount: number;
+  durationSec?: number;
 }
 
 export interface ExamItem {
   id: string;
-  questionId: string;
-  content: string;
-  type: string;
-  order: number;
-  points: number;
+  questionGroupId: string;
+  displayOrder: number;
+  locked?: boolean;
+  questionGroup?: { title: string; code: string; part: string };
+  status?: string;
 }
 
 export interface ExamRule {
-  id: string;
-  type: "difficulty" | "topic" | "skill";
-  value: string;
-  count: number;
+  id?: string;
+  part: string;
+  questionCount: number;
+  groupCount?: number;
+  levelDistribution?: Record<string, number>;
+  requiredTagCodes?: string[];
 }
 
 export interface ExamStats {
@@ -53,5 +56,5 @@ export interface ExamStats {
 }
 
 export type ExamStatus = "all" | "published" | "draft" | "archived";
-export type ExamType = "all" | "full" | "mini";
+export type ExamMode = "all" | "practice" | "mock_test" | "official_exam";
 export type ViewMode = "grid" | "list";

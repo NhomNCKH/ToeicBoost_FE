@@ -27,10 +27,23 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function HomePage() {
   const router = useRouter();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { scrollYProgress } = useScroll();
+  
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      if (["admin", "superadmin", "org_admin"].includes(user.role)) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/student/dashboard");
+      }
+    }
+  }, [isLoading, isAuthenticated, user, router]);
+
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8]);
 
   const [isScrolled, setIsScrolled] = useState(false);

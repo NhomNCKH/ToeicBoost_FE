@@ -29,9 +29,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,10 +64,6 @@ export default function RegisterPage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Ảnh đại diện không được vượt quá 5MB");
-        return;
-      }
       setAvatar(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -94,38 +92,22 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response: any = await apiClient.auth.register({ name, email, password });
+      const response = await apiClient.auth.register({ name, email, password });
 
-      if (response.statusCode === 200) {
-        const loginResponse: any = await apiClient.auth.login({ email, password });
+      if (response.statusCode === 201) {
+        // Auto-login sau khi đăng ký thành công bằng useAuth().login
+        const loginRes = await login({ email, password });
 
-        if (loginResponse.statusCode === 200 && loginResponse.data) {
-          const user = loginResponse.data.user || loginResponse.data.data?.user;
-          const accessToken = loginResponse.data.accessToken || loginResponse.data.data?.accessToken;
-          const refreshToken = loginResponse.data.refreshToken || loginResponse.data.data?.refreshToken;
-
-          if (user && accessToken) {
-            localStorage.setItem("accessToken", accessToken);
-            localStorage.setItem("refreshToken", refreshToken);
-            localStorage.setItem("user", JSON.stringify(user));
-
-            // Avatar upload functionality removed for now
-            router.push("/student/dashboard");
-          } else {
-            setError("Đăng nhập sau đăng ký thất bại");
-          }
+        if (loginRes.success) {
+          router.push("/student/dashboard");
         } else {
-          setError(loginResponse.message || "Đăng nhập sau đăng ký thất bại");
+          // Đăng ký OK nhưng auto-login thất bại → chuyển sang trang login
+          router.push("/login");
         }
       } else {
-        if (response.statusCode === 409) {
-          setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
-        } else {
-          setError(response.message || "Đăng ký thất bại");
-        }
+        setError(response.message || "Đăng ký thất bại");
       }
     } catch (err: any) {
-      console.error("Register error:", err);
       if (err.statusCode === 409) {
         setError("Email đã được đăng ký. Vui lòng sử dụng email khác");
       } else {

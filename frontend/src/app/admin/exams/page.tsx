@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, FileText, Loader2 } from "lucide-react";
+import { Plus, FileText, Loader2, Info, ArrowRight } from "lucide-react";
 import { ExamStats } from "./components/ExamStats";
 import { ExamFilters } from "./components/ExamFilters";
 import { ExamCard } from "./components/ExamCard";
@@ -15,45 +15,79 @@ import { useExamActions } from "./hooks/useExamActions";
 
 type ViewMode = "grid" | "list";
 type ExamStatus = "all" | "published" | "draft" | "archived";
-type ExamType = "all" | "full" | "mini";
+type ExamMode = "all" | "practice" | "mock_test" | "official_exam";
+
+// ─── Workflow Banner ──────────────────────────────────────────────────────────
+function WorkflowBanner() {
+  const steps = [
+    { n: 1, label: "Thông tin", desc: "Code, tên, mode" },
+    { n: 2, label: "Cấu trúc", desc: "Sections" },
+    { n: 3, label: "Quy tắc", desc: "Rules" },
+    { n: 4, label: "Câu hỏi", desc: "Fill questions" },
+    { n: 5, label: "Xuất bản", desc: "Publish" },
+  ];
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm overflow-hidden relative group">
+      {/* Decorative background element */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700 opacity-50" />
+      
+      <div className="relative flex flex-col md:flex-row items-center gap-4 md:gap-8">
+        <div className="flex-shrink-0 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-gray-100 pb-3 md:pb-0 md:pr-8">
+          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-1">Workflow</span>
+          <h3 className="text-lg font-black text-gray-900 leading-tight">Quy trình<br className="hidden md:block" /> thiết lập</h3>
+        </div>
+
+        <div className="flex-1 w-full overflow-x-auto no-scrollbar">
+          <div className="flex items-center justify-between min-w-[600px] py-1">
+            {steps.map((s, i) => (
+              <div key={s.n} className="flex items-center flex-1 last:flex-none group/step">
+                <div className="flex items-center gap-3 transition-all duration-300 transform group-hover/step:translate-x-1">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center font-bold text-gray-400 group-hover/step:bg-emerald-600 group-hover/step:text-white group-hover/step:border-emerald-600 group-hover/step:shadow-lg group-hover/step:shadow-emerald-200 transition-all duration-300">
+                      {s.n}
+                    </div>
+                    {/* Active dot indicator if needed, but keeping it simple for now */}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-800 group-hover/step:text-emerald-700 transition-colors duration-300">{s.label}</span>
+                    <span className="text-[9px] text-gray-400 font-medium group-hover/step:text-gray-500 transition-colors duration-300">{s.desc}</span>
+                  </div>
+                </div>
+                
+                {i < steps.length - 1 && (
+                  <div className="flex-1 mx-4 h-[1px] bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-emerald-400 transform -translate-x-full group-hover/step:translate-x-full transition-transform duration-1000 ease-in-out opacity-30" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminExamsPage() {
   const { templates, loading, error, stats, refresh } = useExamTemplates();
   const { publishExam, duplicateExam } = useExamActions();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<ExamStatus>("all");
-  const [selectedType, setSelectedType] = useState<ExamType>("all");
+  const [selectedMode, setSelectedMode] = useState<ExamMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy": return "bg-green-100 text-green-700";
-      case "medium": return "bg-yellow-100 text-yellow-700";
-      case "hard": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getDifficultyLabel = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy": return "Dễ";
-      case "medium": return "Trung bình";
-      case "hard": return "Khó";
-      default: return difficulty;
-    }
-  };
-
-  // Filter templates - THÊM KIỂM TRA templates là array
-  const filteredTemplates = Array.isArray(templates) 
+  const filteredTemplates = Array.isArray(templates)
     ? templates.filter((template) => {
-        const matchesSearch = template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          template.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch =
+          template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          template.code?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = selectedStatus === "all" || template.status === selectedStatus;
-        const matchesType = selectedType === "all" || template.type === selectedType;
-        return matchesSearch && matchesStatus && matchesType;
+        const matchesMode = selectedMode === "all" || template.mode === selectedMode;
+        return matchesSearch && matchesStatus && matchesMode;
       })
     : [];
 
@@ -67,7 +101,13 @@ export default function AdminExamsPage() {
     refresh();
   };
 
-  // Hiển thị loading
+  // After creating, auto-open detail modal on Sections tab so user can continue the workflow
+  const handleCreateSuccess = (id: string) => {
+    setShowCreateModal(false);
+    refresh();
+    setSelectedTemplate({ id, name: "Đề thi mới", status: "draft", _initialTab: "sections" });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -76,7 +116,6 @@ export default function AdminExamsPage() {
     );
   }
 
-  // Hiển thị error
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-96">
@@ -85,42 +124,34 @@ export default function AdminExamsPage() {
         </div>
         <h3 className="text-lg font-medium text-gray-800 mb-2">Không thể tải dữ liệu</h3>
         <p className="text-gray-500 mb-4">{error}</p>
-        <button
-          onClick={() => refresh()}
-          className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
-        >
+        <button onClick={() => refresh()} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">
           Thử lại
         </button>
       </div>
     );
   }
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 },
-    },
-  };
+  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý đề thi</h1>
-          <p className="text-gray-600 mt-1">
-            Tạo và quản lý các mẫu đề thi TOEIC với cấu trúc linh hoạt
-          </p>
+          <h1 className="text-2xl font-bold text-gray-800"></h1>
+          <p className="text-gray-500 text-sm mt-0.5"></p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:shadow-lg transition-all hover:scale-105"
+          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-sm transition-all self-start md:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Tạo đề thi mới</span>
+          <span className="font-bold text-sm">Tạo đề thi mới</span>
         </button>
       </div>
+
+      {/* Workflow Banner */}
+      <WorkflowBanner />
 
       {/* Stats */}
       <ExamStats stats={stats} />
@@ -131,29 +162,32 @@ export default function AdminExamsPage() {
         onSearchChange={setSearchTerm}
         selectedStatus={selectedStatus}
         onStatusChange={setSelectedStatus}
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
+        selectedMode={selectedMode}
+        onModeChange={setSelectedMode}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
 
-      {/* Templates Grid/List */}
+      {/* Templates */}
       {filteredTemplates.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-12 h-12 text-gray-400" />
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-gray-800 mb-2">Không tìm thấy đề thi</h3>
-          <p className="text-gray-500">Hãy thử thay đổi bộ lọc hoặc tạo đề thi mới</p>
+          <h3 className="text-lg font-medium text-gray-800 mb-1">Không tìm thấy đề thi</h3>
+          <p className="text-gray-500 text-sm">Hãy thử thay đổi bộ lọc hoặc tạo đề thi mới</p>
+          <button onClick={() => setShowCreateModal(true)} className="mt-4 flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 mx-auto">
+            <Plus className="w-4 h-4" />Tạo đề thi đầu tiên
+          </button>
         </div>
       ) : (
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className={viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-4"}
+          className={viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-3"}
         >
-          {filteredTemplates.map((template) => (
+          {filteredTemplates.map((template) =>
             viewMode === "grid" ? (
               <ExamCard
                 key={template.id}
@@ -161,8 +195,6 @@ export default function AdminExamsPage() {
                 onSelect={setSelectedTemplate}
                 onDuplicate={handleDuplicate}
                 onPublish={template.status === "draft" ? handlePublish : undefined}
-                getDifficultyColor={getDifficultyColor}
-                getDifficultyLabel={getDifficultyLabel}
               />
             ) : (
               <ExamListItem
@@ -171,11 +203,9 @@ export default function AdminExamsPage() {
                 onSelect={setSelectedTemplate}
                 onDuplicate={handleDuplicate}
                 onPublish={template.status === "draft" ? handlePublish : undefined}
-                getDifficultyColor={getDifficultyColor}
-                getDifficultyLabel={getDifficultyLabel}
               />
             )
-          ))}
+          )}
         </motion.div>
       )}
 
@@ -186,8 +216,7 @@ export default function AdminExamsPage() {
             template={selectedTemplate}
             onClose={() => setSelectedTemplate(null)}
             onRefresh={refresh}
-            getDifficultyColor={getDifficultyColor}
-            getDifficultyLabel={getDifficultyLabel}
+            initialTab={selectedTemplate._initialTab ?? "overview"}
           />
         )}
       </AnimatePresence>
@@ -196,10 +225,7 @@ export default function AdminExamsPage() {
         {showCreateModal && (
           <CreateExamModal
             onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              setShowCreateModal(false);
-              refresh();
-            }}
+            onSuccess={handleCreateSuccess}
           />
         )}
       </AnimatePresence>

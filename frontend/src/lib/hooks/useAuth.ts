@@ -1,13 +1,2 @@
-// Unified Auth Hook
-import { useContext } from 'react';
-import { AuthContext } from '@/lib/contexts/AuthContext';
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  
-  return context;
-}
+// Re-export từ contexts/AuthContext (single source of truth)
+export { useAuth } from '@/contexts/AuthContext';

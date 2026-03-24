@@ -2,36 +2,34 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Các route public không cần đăng nhập
 const publicRoutes = ['/', '/login', '/register'];
 
 export function middleware(request: NextRequest) {
-  // const token = request.cookies.get('access_token')?.value;
-  // const path = request.nextUrl.pathname;
+  const token = request.cookies.get('accessToken')?.value;
+  const path = request.nextUrl.pathname;
 
-  // // Kiểm tra nếu đã đăng nhập và cố gắng vào trang chủ
-  // if (token && (path === '/' || path === '/login' || path === '/register')) {
-  //   // Lấy user role từ cookie hoặc localStorage
-  //   // Tạm thời chuyển đến dashboard
-  //   return NextResponse.redirect(new URL('/student/dashboard', request.url));
-  // }
+  // Bỏ qua static files và API routes
+  if (path.startsWith('/_next') || path.startsWith('/api')) {
+    return NextResponse.next();
+  }
 
-  // // Kiểm tra nếu chưa đăng nhập và vào route cần xác thực
-  // if (!token && !publicRoutes.includes(path) && !path.startsWith('/_next')) {
-  //   return NextResponse.redirect(new URL('/', request.url));
-  // }
+  // Nếu đã đăng nhập mà vào /login hoặc /register thì chuyển về trang dashboard tương ứng
+  // Vì middleware không truy cập được localStorage để biết role, ta cứ chuyển về /
+  // hoặc một trang trung gian để FE xử lý tiếp.
+  if (token && (path === '/login' || path === '/register')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Chưa đăng nhập mà vào route cần auth → redirect login
+  if (!token && !publicRoutes.includes(path)) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', path);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

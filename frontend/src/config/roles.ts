@@ -1,14 +1,13 @@
 // src/config/roles.ts
 export const ROLES = {
-  STUDENT: 'student',
+  LEARNER: 'learner',
   ADMIN: 'admin',
 } as const;
 
 export type UserRole = typeof ROLES[keyof typeof ROLES];
 
 export const PERMISSIONS = {
-  // Student permissions
-  [ROLES.STUDENT]: [
+  [ROLES.LEARNER]: [
     'view:dashboard',
     'view:practice',
     'view:interview',
@@ -16,8 +15,6 @@ export const PERMISSIONS = {
     'create:interview',
     'submit:practice',
   ],
-  
-  // Admin permissions
   [ROLES.ADMIN]: [
     'view:admin-dashboard',
     'view:all-students',

@@ -25,7 +25,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login({ email, password });
       onSuccess?.();
     } catch (err: any) {
       if (err.statusCode === 400) {

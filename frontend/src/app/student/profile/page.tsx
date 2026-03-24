@@ -94,20 +94,15 @@ export default function StudentProfilePage() {
 
     setMessage({ type: "", text: "" });
 
-    if (!user?.id) {
-      setMessage({ type: 'error', text: 'Không tìm thấy thông tin người dùng' });
-      return;
-    }
+    const newAvatarUrl = await uploadAvatar(file);
 
-    const newAvatarUrl = await uploadAvatar(file, user.id);
-    
     if (newAvatarUrl) {
       setAvatarUrl(newAvatarUrl);
       setAvatarPreview(newAvatarUrl);
-      
+
       const updatedUser = { ...user, avatarUrl: newAvatarUrl };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+
       setMessage({ type: 'success', text: 'Cập nhật ảnh đại diện thành công!' });
     } else {
       setMessage({ type: 'error', text: uploadError || 'Upload thất bại' });
@@ -217,11 +212,10 @@ export default function StudentProfilePage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`mb-6 p-3 rounded-lg flex items-center gap-2 ${
-            message.type === "success"
+          className={`mb-6 p-3 rounded-lg flex items-center gap-2 ${message.type === "success"
               ? "bg-green-50 border border-green-200 text-green-700"
               : "bg-red-50 border border-red-200 text-red-700"
-          }`}
+            }`}
         >
           {message.type === "success" ? (
             <CheckCircle className="w-4 h-4" />
@@ -280,7 +274,7 @@ export default function StudentProfilePage() {
               {isUploading && (
                 <div className="mt-3 w-full max-w-[200px]">
                   <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     />

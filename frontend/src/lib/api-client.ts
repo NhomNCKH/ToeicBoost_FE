@@ -1,128 +1,407 @@
-// Centralized API client with error handling and interceptors
-import { ApiResponse, AuthResponse, LoginData, RegisterData, RefreshTokenData, UserProfile } from '@/types/api';
+// ============================================================
+// Centralized API client - aligned với ToeicBoost_BE
+// Base URL: /api/v1  |  Auth prefix: /auth
+// ============================================================
+import type {
+  ApiResponse,
+  LoginData,
+  RegisterData,
+  RefreshTokenData,
+  LoginApiResponse,
+  RegisterApiResponse,
+  RefreshApiResponse,
+  LogoutApiResponse,
+  MeApiResponse,
+} from '@/types/api';
+
+// Chọn base URL theo env
+function getBaseURL(): string {
+  if (process.env.NODE_ENV === 'production') {
+    return '/api/proxy/api/v1';
+  }
+  const useLocal = process.env.NEXT_PUBLIC_USE_LOCAL === 'true';
+  if (useLocal) {
+    return process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL || 'http://localhost:3001/api/v1';
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
+}
+
+function getHealthURL(): string {
+  if (process.env.NODE_ENV === 'production') return '/api/proxy/health';
+  const useLocal = process.env.NEXT_PUBLIC_USE_LOCAL === 'true';
+  const base = useLocal
+    ? process.env.NEXT_PUBLIC_LOCAL_API_URL || 'http://localhost:3001'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://144.91.104.237:3001';
+  return `${base}/health`;
+}
 
 class ApiClient {
-  private baseURL: string;
-  private healthURL: string;
+  readonly baseURL = getBaseURL();
+  private healthURL = getHealthURL();
 
-  constructor() {
-    this.baseURL = process.env.NODE_ENV === 'production' 
-      ? '/api/proxy/api/v1'
-      : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
-    
-    this.healthURL = process.env.NODE_ENV === 'production'
-      ? '/api/proxy/health'
-      : 'http://144.91.104.237:3001/health';
-  }
-
-  // Helper method to get auth headers
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('accessToken');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     return {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
-  // Generic request method with error handling
-  private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    try {
-      const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
-      
-      const response = await fetch(url, {
-        headers: this.getAuthHeaders(),
-        ...options,
-      });
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
 
-      const data = await response.json();
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders(),
+      ...options,
+    });
 
-      if (!response.ok) {
-        throw {
-          statusCode: response.status,
-          message: data.message || 'Request failed',
-          ...data
-        };
-      }
+    const data = await response.json();
 
-      return data;
-    } catch (error: any) {
-      // Handle network errors
-      if (!error.statusCode) {
-        throw {
-          statusCode: 500,
-          message: 'Network error occurred',
-          error: error.message
-        };
-      }
-      throw error;
+    if (!response.ok) {
+      throw {
+        statusCode: response.status,
+        message: data?.message || 'Request failed',
+        error: data?.error,
+        ...data,
+      };
     }
+
+    return data as T;
   }
 
-  // Health endpoints
+  // ---- Health ----
   async health() {
-    const response = await fetch(this.healthURL);
-    return response.json();
+    const res = await fetch(this.healthURL);
+    return res.json();
   }
 
-  async healthDetailed() {
-    const detailedUrl = process.env.NODE_ENV === 'production' 
-      ? '/api/proxy/' 
-      : 'http://144.91.104.237:3001/';
-    const response = await fetch(detailedUrl);
-    return response.json();
-  }
-
-  // Auth endpoints
+  // ---- Auth endpoints (/auth/*) ----
   auth = {
-    register: (data: RegisterData): Promise<ApiResponse> => 
-      this.request('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }),
+    register: (data: RegisterData): Promise<RegisterApiResponse> =>
+      this.request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 
-    login: (data: LoginData): Promise<ApiResponse<AuthResponse>> => 
-      this.request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }),
+    login: (data: LoginData): Promise<LoginApiResponse> =>
+      this.request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
 
-    refreshToken: (data: RefreshTokenData): Promise<ApiResponse> => 
-      this.request('/auth/refresh', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }),
+    refreshToken: (data: RefreshTokenData): Promise<RefreshApiResponse> =>
+      this.request('/auth/refresh', { method: 'POST', body: JSON.stringify(data) }),
 
-    logout: (data: RefreshTokenData): Promise<ApiResponse> => 
-      this.request('/auth/logout', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }),
+    logout: (data: RefreshTokenData): Promise<LogoutApiResponse> =>
+      this.request('/auth/logout', { method: 'POST', body: JSON.stringify(data) }),
 
-    getProfile: (): Promise<ApiResponse<UserProfile>> => 
-      this.request('/auth/me', { method: 'GET' })
+    getMe: (): Promise<MeApiResponse> =>
+      this.request('/auth/me', { method: 'GET' }),
+
+    /**
+     * POST /auth/me/avatar  (multipart/form-data)
+     * Upload file ảnh trực tiếp, BE tự upload lên S3 và cập nhật DB
+     */
+    uploadAvatar: (file: File): Promise<ApiResponse<{ avatarUrl: string; s3Key: string }>> => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const formData = new FormData();
+      formData.append('file', file);
+      return fetch(`${this.baseURL}/auth/me/avatar`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw { statusCode: res.status, message: data?.message || 'Upload failed', ...data };
+        return data;
+      });
+    },
+
+    /**
+     * GET /auth/me/avatar
+     * Lấy avatarUrl hiện tại của user
+     */
+    getAvatar: (): Promise<ApiResponse<{ avatarUrl: string | null }>> =>
+      this.request('/auth/me/avatar', { method: 'GET' }),
+
+    /**
+     * POST /auth/me/avatar/s3
+     * Gắn avatar từ s3Key đã upload trước bằng presigned URL
+     */
+    attachAvatarFromS3: (s3Key: string): Promise<ApiResponse> =>
+      this.request('/auth/me/avatar/s3', { method: 'POST', body: JSON.stringify({ s3Key }) }),
   };
 
-  // Media endpoints
+  // ---- Media endpoints (/media/*) ----
   media = {
-    getPresignedUploadUrl: (data: { fileName: string; fileType: string }) => 
-      this.request('/media/upload', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      }),
+    /**
+     * POST /media/upload
+     * Tạo presigned PUT URL để FE upload file trực tiếp lên S3
+     * Returns: { signedPutUrl, s3Key }
+     */
+    getPresignedUploadUrl: (data: {
+      fileName: string;
+      contentType: string;
+      category?: string;
+      expiresInSeconds?: number;
+    }): Promise<ApiResponse<{ signedPutUrl: string; s3Key: string }>> =>
+      this.request('/media/upload', { method: 'POST', body: JSON.stringify(data) }),
 
-    getPresignedGetUrl: (data: { fileName: string }) => 
-      this.request('/media/presign-get', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      })
+    /**
+     * POST /media/presign-get
+     * Tạo presigned GET URL để xem file
+     * Returns: { signedGetUrl }
+     */
+    getPresignedGetUrl: (data: {
+      s3Key: string;
+      expiresInSeconds?: number;
+    }): Promise<ApiResponse<{ signedGetUrl: string }>> =>
+      this.request('/media/presign-get', { method: 'POST', body: JSON.stringify(data) }),
+  };
+
+  // ---- Admin: Question Bank (/admin/question-groups, /admin/tags) ----
+  admin = {
+    questionBank: {
+      // Tags
+      listTags: (): Promise<ApiResponse> =>
+        this.request('/admin/tags', { method: 'GET' }),
+
+      createTag: (data: { category: string; code: string; label: string; description?: string }): Promise<ApiResponse> =>
+        this.request('/admin/tags', { method: 'POST', body: JSON.stringify(data) }),
+
+      updateTag: (id: string, data: { category?: string; code?: string; label?: string; description?: string }): Promise<ApiResponse> =>
+        this.request(`/admin/tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteTag: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/tags/${id}`, { method: 'DELETE' }),
+
+      // Question Groups
+      listQuestionGroups: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: string;
+        part?: string;
+      }): Promise<ApiResponse> => {
+        const qs = params
+          ? '?' + new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([, v]) => v !== undefined && v !== '')
+                  .map(([k, v]) => [k, String(v)])
+              )
+            ).toString()
+          : '';
+        return this.request(`/admin/question-groups${qs}`, { method: 'GET' });
+      },
+
+      createQuestionGroup: (data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request('/admin/question-groups', { method: 'POST', body: JSON.stringify(data) }),
+
+      getQuestionGroup: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}`, { method: 'GET' }),
+
+      updateQuestionGroup: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteQuestionGroup: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}`, { method: 'DELETE' }),
+
+      submitReview: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/submit-review`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      approve: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/approve`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      reject: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/reject`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      publish: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/publish`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      archive: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/archive`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      bulkTag: (questionGroupIds: string[], tagCodes: string[]): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/bulk-tag', { method: 'POST', body: JSON.stringify({ questionGroupIds, tagCodes }) }),
+
+      bulkStatus: (questionGroupIds: string[], status: string): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/bulk-status', { method: 'POST', body: JSON.stringify({ questionGroupIds, status }) }),
+
+      presignImport: (data: { contentType: string; fileName?: string }): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/import/presign', { method: 'POST', body: JSON.stringify(data) }),
+
+      previewImport: (groups: unknown[]): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/import/preview', { method: 'POST', body: JSON.stringify({ groups }) }),
+
+      commitImport: (groups: unknown[], sourceFileName?: string): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/import/commit', { method: 'POST', body: JSON.stringify({ groups, sourceFileName }) }),
+
+      presignAsset: (id: string, data: { kind: string; contentType: string; fileName?: string }): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/assets/presign`, { method: 'POST', body: JSON.stringify(data) }),
+
+      attachAsset: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/assets`, { method: 'POST', body: JSON.stringify(data) }),
+
+      deleteAsset: (id: string, assetId: string): Promise<ApiResponse> =>
+        this.request(`/admin/question-groups/${id}/assets/${assetId}`, { method: 'DELETE' }),
+    },
+
+    // ---- Admin: Exam Templates (/admin/exam-templates) ----
+    examTemplate: {
+      list: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: string;
+        type?: string;
+      }): Promise<ApiResponse> => {
+        const qs = params
+          ? '?' + new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([, v]) => v !== undefined && v !== '' && v !== 'all')
+                  .map(([k, v]) => [k, String(v)])
+              )
+            ).toString()
+          : '';
+        return this.request(`/admin/exam-templates${qs}`, { method: 'GET' });
+      },
+
+      create: (data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request('/admin/exam-templates', { method: 'POST', body: JSON.stringify(data) }),
+
+      get: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}`, { method: 'GET' }),
+
+      update: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      delete: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}`, { method: 'DELETE' }),
+
+      replaceSections: (id: string, sections: unknown[]): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/sections`, { method: 'PUT', body: JSON.stringify({ sections }) }),
+
+      replaceRules: (id: string, rules: unknown[]): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/rules`, { method: 'PUT', body: JSON.stringify({ rules }) }),
+
+      addManualItems: (id: string, items: unknown[]): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/items/manual`, { method: 'POST', body: JSON.stringify({ items }) }),
+
+      reorderItems: (id: string, items: { itemId: string; order: number }[]): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/items/reorder`, { method: 'PATCH', body: JSON.stringify({ items }) }),
+
+      deleteItem: (id: string, itemId: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/items/${itemId}`, { method: 'DELETE' }),
+
+      autoFillItems: (id: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/items/auto-fill`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      validate: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/validate`, { method: 'POST' }),
+
+      preview: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/preview`, { method: 'GET' }),
+
+      publish: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/publish`, { method: 'POST' }),
+
+      archive: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/archive`, { method: 'POST' }),
+
+      duplicate: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/exam-templates/${id}/duplicate`, { method: 'POST' }),
+    },
+
+    // ---- Admin: RBAC (/admin/rbac/*) - chỉ SUPERADMIN ----
+    rbac: {
+      listRoles: (): Promise<ApiResponse> =>
+        this.request('/admin/rbac/roles', { method: 'GET' }),
+
+      createRole: (data: { name: string; description?: string }): Promise<ApiResponse> =>
+        this.request('/admin/rbac/roles', { method: 'POST', body: JSON.stringify(data) }),
+
+      updateRole: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deleteRole: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/roles/${id}`, { method: 'DELETE' }),
+
+      listPermissions: (): Promise<ApiResponse> =>
+        this.request('/admin/rbac/permissions', { method: 'GET' }),
+
+      createPermission: (data: { name: string; description?: string }): Promise<ApiResponse> =>
+        this.request('/admin/rbac/permissions', { method: 'POST', body: JSON.stringify(data) }),
+
+      updatePermission: (id: string, data: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/permissions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+      deletePermission: (id: string): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/permissions/${id}`, { method: 'DELETE' }),
+
+      listUsers: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        role?: string;
+        status?: string;
+      }): Promise<ApiResponse> => {
+        const qs = params
+          ? '?' + new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([, v]) => v !== undefined && v !== '' && v !== 'all')
+                  .map(([k, v]) => [k, String(v)])
+              )
+            ).toString()
+          : '';
+        return this.request(`/admin/rbac/users${qs}`, { method: 'GET' });
+      },
+
+      replaceUserRoles: (userId: string, roles: string[]): Promise<ApiResponse> =>
+        this.request(`/admin/rbac/users/${userId}/roles`, { method: 'PATCH', body: JSON.stringify({ roles }) }),
+    },
+  };
+
+  // ---- Learner: Exam Attempts (/learner/exam-attempts) ----
+  learner = {
+    // Published exam templates visible to students
+    listPublishedTemplates: (params?: { mode?: string }): Promise<ApiResponse> => {
+      const qs = params
+        ? '?' + new URLSearchParams(
+            Object.fromEntries(
+              Object.entries(params)
+                .filter(([, v]) => v !== undefined && v !== '')
+                .map(([k, v]) => [k, String(v)])
+            )
+          ).toString()
+        : '';
+      return this.request(`/learner/exam-templates${qs}`, { method: 'GET' });
+    },
+
+    examAttempt: {
+      start: (data: { examTemplateId: string; mode?: string }): Promise<ApiResponse> =>
+        this.request('/learner/exam-attempts', { method: 'POST', body: JSON.stringify(data) }),
+
+      saveAnswers: (
+        attemptId: string,
+        data: {
+          answers: {
+            questionId: string;
+            selectedOptionKey?: string | null;
+            answeredAt?: string;
+            timeSpentSec?: number | null;
+            answerPayload?: Record<string, unknown>;
+          }[];
+        },
+      ): Promise<ApiResponse> =>
+        this.request(`/learner/exam-attempts/${attemptId}/answers`, { method: 'PUT', body: JSON.stringify(data) }),
+
+      submit: (attemptId: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+        this.request(`/learner/exam-attempts/${attemptId}/submit`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+
+      getResult: (attemptId: string): Promise<ApiResponse> =>
+        this.request(`/learner/exam-attempts/${attemptId}/result`, { method: 'GET' }),
+    },
   };
 }
 
-// Export singleton instance
 export const apiClient = new ApiClient();
 
-// Export for backward compatibility
+// backward compat
 export const api = apiClient;
