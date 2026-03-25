@@ -15,6 +15,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Question {
   id: string;

@@ -50,12 +50,9 @@ export default function LoginPage() {
         const user = storedUser ? JSON.parse(storedUser) : null;
 
         const isAdminRole = ["admin", "superadmin", "org_admin"].includes(user?.role || "");
-
-        if (isAdminRole) {
-          router.push("/admin/dashboard");
-        } else {
-          router.push(redirect);
-        }
+        const targetPath = isAdminRole ? "/admin/dashboard" : redirect;
+        
+        router.push(targetPath);
       } else {
         setError(res.message);
       }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -9,7 +10,12 @@ import {
   Activity,
   Calendar,
   Database,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronRight,
 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/useAuth";
 import { WelcomeHeader } from "@/components/ui/WelcomeHeader";
 import { EnhancedStatCard } from "@/components/ui/EnhancedStatCard";
@@ -19,6 +25,21 @@ import { CertificateCard } from "@/components/ui/CertificateCard";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(false); // Sẽ call API thực tế ở đây
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   const stats = [
     {
@@ -26,32 +47,36 @@ export default function AdminDashboard() {
       label: "Tổng học viên",
       value: "1,234",
       change: "+12%",
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
+      trend: "up",
+      color: "from-blue-500 to-indigo-600",
+      bgColor: "bg-blue-50/50",
     },
     {
       icon: Award,
-      label: "Chứng chỉ đã cấp",
+      label: "Chứng chỉ cấp",
       value: "856",
       change: "+23%",
-      color: "from-emerald-500 to-teal-500",
-      bgColor: "bg-emerald-50",
+      trend: "up",
+      color: "from-emerald-500 to-teal-600",
+      bgColor: "bg-emerald-50/50",
     },
     {
       icon: BookOpen,
-      label: "Câu hỏi",
+      label: "Ngân hàng câu hỏi",
       value: "2,345",
       change: "+8%",
-      color: "from-purple-500 to-purple-600",
-      bgColor: "bg-purple-50",
+      trend: "up",
+      color: "from-purple-500 to-indigo-600",
+      bgColor: "bg-purple-50/50",
     },
     {
       icon: FileText,
       label: "Đề thi",
       value: "24",
-      change: "+2",
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
+      change: "-2%",
+      trend: "down",
+      color: "from-orange-500 to-rose-600",
+      bgColor: "bg-orange-50/50",
     },
   ];
 
@@ -77,14 +102,26 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10 bg-[#f8fafc] min-h-screen">
       {/* Welcome Header */}
-      <WelcomeHeader
-        userName={user?.name || "Admin"}
-        title="Xin chào"
-        subtitle="Chào mừng bạn quay trở lại. Dưới đây là tổng quan hệ thống hôm nay."
-        date="24/03/2024"
-      />
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+            Chào buổi sáng, {user?.name?.split(' ').pop() || "Admin"}
+          </h1>
+          <p className="text-slate-500 font-medium">
+            Hệ thống đang hoạt động ổn định. Kiểm tra các chỉ số chính bên dưới.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="px-5 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
+            Báo cáo chi tiết
+          </button>
+          <button className="px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95">
+            Quản lý đề thi
+          </button>
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <motion.div
@@ -94,93 +131,136 @@ export default function AdminDashboard() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {stats.map((stat, index) => (
-          <EnhancedStatCard
+          <motion.div
             key={stat.label}
-            icon={stat.icon}
-            label={stat.label}
-            value={stat.value}
-            change={stat.change}
-            color={stat.color}
-            bgColor={stat.bgColor}
-            index={index}
-          />
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              show: { opacity: 1, y: 0 }
+            }}
+            className="relative overflow-hidden bg-white p-7 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.05)] transition-all duration-500"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className={`p-3.5 rounded-2xl ${stat.bgColor}`}>
+                <stat.icon className={`w-6 h-6 text-transparent bg-clip-text bg-gradient-to-br ${stat.color}`} />
+              </div>
+              <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
+                stat.trend === 'up' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
+              }`}>
+                {stat.change}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+              <p className="text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</p>
+            </div>
+          </motion.div>
         ))}
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Users */}
-        <InfoCard
-          title="Học viên mới"
-          icon={Users}
-          actionText="Xem tất cả"
-          onAction={() => console.log('View all users')}
-        >
-          {recentUsers.map((user) => (
-            <UserCard key={user.id} user={user} />
-          ))}
-        </InfoCard>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
+        <div className="xl:col-span-2 space-y-10">
+          {/* Main Chart Card */}
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Lưu lượng truy cập</h3>
+                <p className="text-sm text-slate-400 font-medium">Thống kê hoạt động 24h qua</p>
+              </div>
+              <div className="flex bg-slate-50 p-1 rounded-xl">
+                <button className="px-4 py-1.5 text-xs font-bold text-slate-900 bg-white rounded-lg shadow-sm">Ngày</button>
+                <button className="px-4 py-1.5 text-xs font-bold text-slate-400">Tuần</button>
+              </div>
+            </div>
+            <div className="h-[320px] w-full bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100 flex items-center justify-center">
+              <Activity className="w-10 h-10 text-slate-200 animate-pulse" />
+            </div>
+          </div>
 
-        {/* Recent Certificates */}
-        <InfoCard
-          title="Chứng chỉ gần đây"
-          icon={Award}
-          actionText="Xem tất cả"
-          onAction={() => console.log('View all certificates')}
-        >
-          {recentCertificates.map((cert) => (
-            <CertificateCard key={cert.id} certificate={cert} />
-          ))}
-        </InfoCard>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Recent Users */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-lg font-black text-slate-900">Học viên mới</h3>
+                <button className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest">Xem tất cả</button>
+              </div>
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] space-y-4">
+                {recentUsers.map((user) => (
+                  <UserCard key={user.id} user={user} />
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Certificates */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-lg font-black text-slate-900">Chứng chỉ</h3>
+                <button className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-widest">Phê duyệt</button>
+              </div>
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] space-y-4">
+                {recentCertificates.map((cert) => (
+                  <CertificateCard key={cert.id} certificate={cert} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-10">
+          {/* System Status Sidebar */}
+          <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-slate-200 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-700" />
+            <div className="relative z-10 space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/5">
+                  <Database className="w-5 h-5 text-emerald-400" />
+                </div>
+                <h3 className="font-black tracking-tight text-lg">Hạ tầng</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Block Height</p>
+                  <p className="text-2xl font-mono font-bold text-white">#1,234,567</p>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Node Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <span className="text-sm font-bold">Online</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Latency</p>
+                    <span className="text-sm font-bold text-emerald-400">24ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule Sidebar */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-black text-slate-900 px-2 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-slate-400" />
+              Sự kiện
+            </h3>
+            <div className="space-y-4">
+              <div className="p-5 bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex items-center gap-4 group cursor-pointer hover:border-slate-200 transition-all">
+                <div className="w-12 h-12 bg-amber-50 rounded-2xl flex flex-col items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+                  <span className="text-[10px] font-black leading-none">THỨ 4</span>
+                  <span className="text-lg font-black">25</span>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-900">Cấp chứng chỉ đợt 1</p>
+                  <p className="text-xs font-bold text-slate-400">15:00 • Tự động</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* System Status */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
-        <InfoCard title="Blockchain Status" icon={Database}>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Block height</span>
-            <span className="font-mono font-bold text-emerald-600">#1,234,567</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Pending transactions</span>
-            <span className="font-mono font-bold text-blue-600">23</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Network hash rate</span>
-            <span className="font-mono font-bold text-purple-600">125.4 MH/s</span>
-          </div>
-        </InfoCard>
-
-        <InfoCard title="Hoạt động hôm nay" icon={Activity}>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Bài tập đã làm</span>
-            <span className="font-bold text-gray-800">234</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Người dùng hoạt động</span>
-            <span className="font-bold text-gray-800">567</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Đề thi đã hoàn thành</span>
-            <span className="font-bold text-gray-800">89</span>
-          </div>
-        </InfoCard>
-
-        <InfoCard title="Lịch trình" icon={Calendar}>
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <p className="text-sm font-medium text-yellow-800">Đợt cấp chứng chỉ</p>
-            <p className="text-xs text-yellow-600">25/03/2024 - 15:00</p>
-          </div>
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <p className="text-sm font-medium text-blue-800">Bảo trì hệ thống</p>
-            <p className="text-xs text-blue-600">30/03/2024 - 02:00</p>
-          </div>
-        </InfoCard>
-      </motion.div>
     </div>
   );
 }

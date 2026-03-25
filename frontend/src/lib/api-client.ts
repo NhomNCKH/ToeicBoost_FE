@@ -16,11 +16,16 @@ import type {
 
 // Chọn base URL theo env
 function getBaseURL(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
+  // Ưu tiên biến môi trường NEXT_PUBLIC_API_BASE_URL
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  // Mặc định kết nối server nếu không có cấu hình khác
+  return 'http://144.91.104.237:3001/api/v1';
 }
 
 function getHealthURL(): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://144.91.104.237:3001';
   return `${base}/health`;
 }
 

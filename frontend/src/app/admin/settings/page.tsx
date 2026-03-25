@@ -21,6 +21,7 @@ import {
   MoreVertical
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
 
 // --- Types ---
 interface Permission {

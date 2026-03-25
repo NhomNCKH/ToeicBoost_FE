@@ -27,7 +27,7 @@ import {
   Twitter,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { useAuth } from "@/lib/hooks";
+import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 
 export default function StudentProfilePage() {

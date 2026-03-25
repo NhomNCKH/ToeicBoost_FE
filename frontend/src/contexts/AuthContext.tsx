@@ -44,9 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!rt) return false;
 
       const res = await apiClient.auth.refreshToken({ refreshToken: rt });
-      const inner = res.data?.data;
+      // Thử lấy data từ res.data.data hoặc res.data tùy theo cấu trúc API
+      const inner = res.data?.data || (res as any).data || res;
 
-      if (res.statusCode === 200 && inner?.accessToken) {
+      if (inner?.accessToken) {
         localStorage.setItem('accessToken', inner.accessToken);
         localStorage.setItem('refreshToken', inner.refreshToken);
         
@@ -120,9 +121,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await apiClient.auth.login(data);
-      const inner = res.data?.data;
 
-      if (res.statusCode === 200 && inner?.accessToken) {
+      // Thử lấy data từ res.data.data hoặc res.data tùy theo cấu trúc API
+      const inner = res.data?.data || (res as any).data || res;
+
+      if (inner?.accessToken) {
         localStorage.setItem('accessToken', inner.accessToken);
         localStorage.setItem('refreshToken', inner.refreshToken);
         localStorage.setItem('user', JSON.stringify(inner.user));
@@ -134,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, message: res.data?.message || 'Đăng nhập thành công' };
       }
 
-      return { success: false, message: res.message || 'Đăng nhập thất bại' };
+      return { success: false, message: res.message || 'Đăng nhập thất bại: Không tìm thấy token' };
     } catch (err: any) {
       const msg =
         err.statusCode === 401 ? 'Email hoặc mật khẩu không đúng' :

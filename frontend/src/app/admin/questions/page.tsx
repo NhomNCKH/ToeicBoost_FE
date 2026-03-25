@@ -642,14 +642,12 @@ function QuestionGroupsTab({ tags }: { tags: TagItem[] }) {
   const fetchGroups = useCallback(async()=>{
     setLoading(true); setError(null);
     try {
-      console.log("DEBUG: Fetching question groups with filters:", { search, filterStatus, filterPart });
       const res = await apiClient.admin.questionBank.listQuestionGroups({
         search: search||undefined, // Use search instead of keyword
         status: filterStatus!=="all"?filterStatus:undefined,
         part: filterPart!=="all"?filterPart:undefined,
         limit: 100 // Increased limit
       });
-      console.log("DEBUG: Fetch groups response:", res);
       
       // Correct extraction for NestJS interceptor pattern
       const resData = res.data as any;

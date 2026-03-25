@@ -12,7 +12,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { MenuItem } from '@/types/ui';
 import { USER_ROLES } from '@/lib/constants';
 

@@ -858,7 +858,6 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
       const res = await apiClient.admin.examTemplate.preview(template.id);
       // Mở preview trong tab mới hoặc modal khác (tùy logic hệ thống)
       // Ở đây ta có thể giả định backend trả về dữ liệu đề thi đầy đủ
-      console.log("Preview Data:", res.data);
       alert("Tính năng xem trước đề thi đang được chuẩn bị. Dữ liệu đã sẵn sàng!");
     } catch (e: any) {
       alert(e.message || "Không thể lấy dữ liệu xem trước");

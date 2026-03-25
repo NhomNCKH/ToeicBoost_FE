@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props { onClose: () => void; onSuccess: (id: string) => void; }
 

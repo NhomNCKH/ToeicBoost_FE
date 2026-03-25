@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:staging": "next dev -- -H 0.0.0.0",
+    "dev:staging": "NEXT_PUBLIC_API_URL=http://localhost:3001 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LoginFormProps {
   onSuccess?: () => void;
