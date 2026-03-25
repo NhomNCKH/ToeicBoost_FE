@@ -16,22 +16,11 @@ import type {
 
 // Chọn base URL theo env
 function getBaseURL(): string {
-  if (process.env.NODE_ENV === 'production') {
-    return '/api/proxy/api/v1';
-  }
-  const useLocal = process.env.NEXT_PUBLIC_USE_LOCAL === 'true';
-  if (useLocal) {
-    return process.env.NEXT_PUBLIC_LOCAL_API_BASE_URL || 'http://localhost:3001/api/v1';
-  }
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://144.91.104.237:3001/api/v1';
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
 }
 
 function getHealthURL(): string {
-  if (process.env.NODE_ENV === 'production') return '/api/proxy/health';
-  const useLocal = process.env.NEXT_PUBLIC_USE_LOCAL === 'true';
-  const base = useLocal
-    ? process.env.NEXT_PUBLIC_LOCAL_API_URL || 'http://localhost:3001'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://144.91.104.237:3001';
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   return `${base}/health`;
 }
 
