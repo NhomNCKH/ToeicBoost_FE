@@ -41,30 +41,35 @@ src/
 ## 🔧 Key Improvements
 
 ### 1. **Consolidated API Layer**
+
 - ✅ Merged duplicate API files (`lib/api.ts` + `services/api.ts`)
 - ✅ Single `ApiClient` class with error handling
 - ✅ Centralized request/response interceptors
 - ✅ Type-safe API calls
 
 ### 2. **Unified Authentication System**
+
 - ✅ Single `AuthContext` with consistent token storage
 - ✅ Unified `useAuth` hook
 - ✅ Automatic token refresh
 - ✅ Role-based routing
 
 ### 3. **Reusable Component Library**
+
 - ✅ `Button`, `Badge`, `Input`, `StatCard` components
 - ✅ Consistent design system
 - ✅ Motion animations with Framer Motion
 - ✅ TypeScript interfaces for props
 
 ### 4. **Shared Layout System**
+
 - ✅ `DashboardLayout` for admin/student pages
 - ✅ Configurable menu items and roles
 - ✅ Responsive sidebar with collapse
 - ✅ Consistent header and navigation
 
 ### 5. **Form Components**
+
 - ✅ `LoginForm` and `RegisterForm` with validation
 - ✅ Password strength validation
 - ✅ Error handling and loading states
@@ -73,8 +78,9 @@ src/
 ## 📚 Usage Examples
 
 ### Using the New API Client
+
 ```typescript
-import { apiClient } from '@/lib/api-client';
+import { apiClient } from "@/lib/api-client";
 
 // Login
 const response = await apiClient.auth.login({ email, password });
@@ -84,21 +90,23 @@ const profile = await apiClient.auth.getProfile();
 ```
 
 ### Using Auth Hook
+
 ```typescript
 import { useAuth } from '@/lib/hooks';
 
 function MyComponent() {
   const { user, isAuthenticated, login, logout } = useAuth();
-  
+
   if (!isAuthenticated) {
     return <LoginForm />;
   }
-  
+
   return <div>Welcome {user?.name}</div>;
 }
 ```
 
 ### Using Dashboard Layout
+
 ```typescript
 import { DashboardLayout } from '@/components/layout';
 import { LayoutDashboard, Users } from 'lucide-react';
@@ -124,6 +132,7 @@ export default function AdminPage({ children }) {
 ```
 
 ### Using UI Components
+
 ```typescript
 import { Button, Badge, StatCard } from '@/components/ui';
 import { Users } from 'lucide-react';
@@ -138,9 +147,9 @@ function Dashboard() {
         change="+12%"
         color="from-blue-500 to-blue-600"
       />
-      
+
       <Badge variant="success">Active</Badge>
-      
+
       <Button variant="primary" loading={false}>
         Save Changes
       </Button>
@@ -152,19 +161,21 @@ function Dashboard() {
 ## 🚀 Migration Steps
 
 ### 1. **Update Imports**
+
 Replace old imports with new centralized ones:
 
 ```typescript
 // OLD
-import { api } from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';
+import { api } from "@/services/api";
+import { useAuth } from "@/hooks/useAuth";
 
 // NEW
-import { apiClient } from '@/lib/api-client';
-import { useAuth } from '@/lib/hooks';
+import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/lib/hooks";
 ```
 
 ### 2. **Replace Layout Components**
+
 Update admin/student layouts to use `DashboardLayout`:
 
 ```typescript
@@ -192,6 +203,7 @@ export default function AdminLayout({ children }) {
 ```
 
 ### 3. **Use Form Components**
+
 Replace custom forms with reusable components:
 
 ```typescript
