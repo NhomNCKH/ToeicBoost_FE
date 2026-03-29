@@ -57,3 +57,38 @@ export const getDifficultyColor = (difficulty: string): string => {
     default: return "bg-gray-100 text-gray-700";
   }
 };
+
+/** Gom thông báo lỗi khi publish thất bại (BE: BadRequest + details.errors / warnings) */
+export function formatExamPublishError(err: unknown): string {
+  if (!err || typeof err !== "object") return "Không thể xuất bản đề thi.";
+  const e = err as Record<string, unknown>;
+
+  type Detail = { errors?: string[]; warnings?: string[] };
+  let details: Detail | undefined = e.details as Detail | undefined;
+  const rawMsg = e.message;
+  if (!details && rawMsg && typeof rawMsg === "object") {
+    details = (rawMsg as Record<string, unknown>).details as Detail | undefined;
+  }
+
+  let headline = "Không thể xuất bản đề thi.";
+  if (typeof rawMsg === "string") {
+    headline = rawMsg;
+  } else if (rawMsg && typeof rawMsg === "object") {
+    const inner = (rawMsg as Record<string, unknown>).message;
+    if (typeof inner === "string") headline = inner;
+    else if (Array.isArray(inner) && inner.length && typeof inner[0] === "string") {
+      headline = inner.join("; ");
+    }
+  }
+
+  const lines: string[] = [headline];
+  if (details?.errors?.length) {
+    lines.push("", "Lý do:");
+    details.errors.forEach((t) => lines.push(`• ${t}`));
+  }
+  if (details?.warnings?.length) {
+    lines.push("", "Cảnh báo:");
+    details.warnings.slice(0, 10).forEach((t) => lines.push(`• ${t}`));
+  }
+  return lines.join("\n");
+}

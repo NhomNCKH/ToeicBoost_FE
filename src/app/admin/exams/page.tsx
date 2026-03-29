@@ -1,18 +1,22 @@
 // app/admin/exams/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Loader2, Info, ArrowRight } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { ActionIcon } from "@/components/ui/action-icons";
+import { AdminConfirmDialog, AdminPagination } from "@/components/admin";
 import { ExamStats } from "./components/ExamStats";
 import { ExamFilters } from "./components/ExamFilters";
 import { ExamCard } from "./components/ExamCard";
 import { ExamListItem } from "./components/ExamListItem";
 import { ExamDetailModal } from "./components/ExamDetailModal";
-import { CreateExamModal } from "./components/CreateExamModal";
+import { CreateExamModal, type CreateExamSuccessSnapshot } from "./components/CreateExamModal";
 import { useExamTemplates } from "./hooks/useExamTemplates";
 import { useExamActions } from "./hooks/useExamActions";
+import { useToast } from "@/hooks/useToast";
+import { formatExamPublishError } from "./utils/helpers";
+import type { ExamTemplate } from "./types";
 
 type ViewMode = "grid" | "list";
 type ExamStatus = "all" | "published" | "draft" | "archived";
@@ -67,43 +71,119 @@ function WorkflowBanner() {
 }
 
 export default function AdminExamsPage() {
-  const { templates, loading, error, stats, refresh } = useExamTemplates();
-  const { publishExam, duplicateExam } = useExamActions();
+  const { templates, loading, error, stats, pagination, refresh } = useExamTemplates();
+  const { publishExam, duplicateExam, archiveExam, deleteExam } = useExamActions();
+  const { notify } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<ExamStatus>("all");
   const [selectedMode, setSelectedMode] = useState<ExamMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [page, setPage] = useState(1);
+  const [searchDebounced, setSearchDebounced] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<ExamTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const buildQueryParams = useCallback(
+    (targetPage = page) => ({
+      page: targetPage,
+      limit: 12,
+      keyword: searchDebounced || undefined,
+      status: selectedStatus !== "all" ? selectedStatus : undefined,
+      mode: selectedMode !== "all" ? selectedMode : undefined,
+    }),
+    [page, searchDebounced, selectedStatus, selectedMode],
+  );
 
-  const filteredTemplates = Array.isArray(templates)
-    ? templates.filter((template) => {
-        const matchesSearch =
-          template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          template.code?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = selectedStatus === "all" || template.status === selectedStatus;
-        const matchesMode = selectedMode === "all" || template.mode === selectedMode;
-        return matchesSearch && matchesStatus && matchesMode;
-      })
-    : [];
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearchDebounced(searchTerm.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedStatus, selectedMode]);
+
+  useEffect(() => {
+    refresh(buildQueryParams(page));
+  }, [page, searchDebounced, selectedStatus, selectedMode, refresh, buildQueryParams]);
 
   const handlePublish = async (id: string) => {
-    await publishExam(id);
-    refresh();
+    try {
+      await publishExam(id);
+      notify({
+        title: "Đã xuất bản",
+        message: "Đề thi đã sẵn sàng cho học viên.",
+        variant: "success",
+      });
+      refresh(buildQueryParams(page));
+    } catch (err: unknown) {
+      notify({
+        title: "Không thể xuất bản",
+        message: formatExamPublishError(err),
+        variant: "error",
+      });
+    }
   };
 
   const handleDuplicate = async (id: string) => {
     await duplicateExam(id);
-    refresh();
+    refresh(buildQueryParams(page));
+  };
+
+  const handleArchive = async (id: string) => {
+    await archiveExam(id);
+    refresh(buildQueryParams(page));
+  };
+
+  const handleDelete = async () => {
+    if (!templateToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteExam(templateToDelete.id);
+      notify({
+        title: "Đã xóa đề thi",
+        message: `"${templateToDelete.name}" đã được gỡ khỏi hệ thống.`,
+        variant: "success",
+      });
+      setTemplateToDelete(null);
+      setSelectedTemplate((prev: ExamTemplate | null) =>
+        prev?.id === templateToDelete.id ? null : prev,
+      );
+      refresh(buildQueryParams(page));
+    } catch (err: unknown) {
+      notify({
+        title: "Không thể xóa",
+        message: formatExamPublishError(err),
+        variant: "error",
+      });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // After creating, auto-open detail modal on Sections tab so user can continue the workflow
-  const handleCreateSuccess = (id: string) => {
+  const handleCreateSuccess = (id: string, snapshot: CreateExamSuccessSnapshot) => {
     setShowCreateModal(false);
-    refresh();
-    setSelectedTemplate({ id, name: "Đề thi mới", status: "draft", _initialTab: "sections" });
+    setPage(1);
+    refresh(buildQueryParams(1));
+    setSelectedTemplate({
+      id,
+      code: snapshot.code,
+      name: snapshot.name,
+      status: "draft",
+      mode: snapshot.mode,
+      totalDurationSec: snapshot.totalDurationSec,
+      totalQuestions: snapshot.totalQuestions,
+      instructions: snapshot.instructions,
+      shuffleQuestionOrder: snapshot.shuffleQuestionOrder,
+      shuffleOptionOrder: snapshot.shuffleOptionOrder,
+      _initialTab: "sections",
+    });
   };
 
   if (loading) {
@@ -122,7 +202,7 @@ export default function AdminExamsPage() {
         </div>
         <h3 className="text-lg font-medium text-gray-800 mb-2">Không thể tải dữ liệu</h3>
         <p className="text-gray-500 mb-4">{error}</p>
-        <button onClick={() => refresh()} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+        <button onClick={() => refresh(buildQueryParams(page))} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
           Thử lại
         </button>
       </div>
@@ -133,21 +213,6 @@ export default function AdminExamsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800"></h1>
-          <p className="text-gray-500 text-sm mt-0.5"></p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-sm transition-all self-start md:self-auto"
-        >
-          <ActionIcon action="add" className="w-4 h-4" />
-          <span className="font-bold text-sm">Tạo đề thi mới</span>
-        </button>
-      </div>
-
       {/* Workflow Banner */}
       <WorkflowBanner />
 
@@ -164,10 +229,19 @@ export default function AdminExamsPage() {
         onModeChange={setSelectedMode}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        actionSlot={
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-sm transition-all"
+          >
+            <ActionIcon action="add" className="w-4 h-4" />
+            <span className="font-bold text-sm">Tạo đề thi mới</span>
+          </button>
+        }
       />
 
       {/* Templates */}
-      {filteredTemplates.length === 0 ? (
+      {templates.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-10 h-10 text-gray-400" />
@@ -185,7 +259,7 @@ export default function AdminExamsPage() {
           animate="show"
           className={viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-3"}
         >
-          {filteredTemplates.map((template) =>
+          {templates.map((template) =>
             viewMode === "grid" ? (
               <ExamCard
                 key={template.id}
@@ -193,6 +267,8 @@ export default function AdminExamsPage() {
                 onSelect={setSelectedTemplate}
                 onDuplicate={handleDuplicate}
                 onPublish={template.status === "draft" ? handlePublish : undefined}
+                onArchive={template.status === "published" ? handleArchive : undefined}
+                onDelete={setTemplateToDelete}
               />
             ) : (
               <ExamListItem
@@ -201,10 +277,24 @@ export default function AdminExamsPage() {
                 onSelect={setSelectedTemplate}
                 onDuplicate={handleDuplicate}
                 onPublish={template.status === "draft" ? handlePublish : undefined}
+                onArchive={template.status === "published" ? handleArchive : undefined}
+                onDelete={setTemplateToDelete}
               />
             )
           )}
         </motion.div>
+      )}
+
+      {pagination.totalPages > 1 && (
+        <AdminPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          limit={pagination.limit}
+          loading={loading}
+          onPageChange={setPage}
+          itemLabel="đề thi"
+        />
       )}
 
       {/* Modals */}
@@ -227,6 +317,24 @@ export default function AdminExamsPage() {
           />
         )}
       </AnimatePresence>
+
+      <AdminConfirmDialog
+        open={!!templateToDelete}
+        title="Xóa đề thi này?"
+        description={
+          templateToDelete
+            ? `Đề "${templateToDelete.name}" (${templateToDelete.status === "published" ? "đã xuất bản" : templateToDelete.status === "archived" ? "đã lưu trữ" : "bản nháp"}) sẽ bị xóa vĩnh viễn. Mọi bài làm thi của học viên gắn với đề này cũng sẽ bị xóa. Thao tác không thể hoàn tác.`
+            : undefined
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        danger
+        loading={deleting}
+        onClose={() => {
+          if (!deleting) setTemplateToDelete(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

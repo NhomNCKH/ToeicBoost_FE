@@ -1,7 +1,7 @@
 // app/admin/exams/components/ExamListItem.tsx
 "use client";
 import { motion } from "framer-motion";
-import { Eye, Copy, Send, Edit, Archive, CheckCircle } from "lucide-react";
+import { Eye, Copy, Send, Edit, Archive, CheckCircle, Trash2 } from "lucide-react";
 import { ExamTemplate } from "../types";
 
 const MODE_LABEL: Record<string, string> = {
@@ -21,6 +21,8 @@ interface ExamListItemProps {
   onSelect: (template: ExamTemplate) => void;
   onDuplicate: (id: string) => void;
   onPublish?: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onDelete?: (template: ExamTemplate) => void;
   getDifficultyColor?: (difficulty: string) => string;
   getDifficultyLabel?: (difficulty: string) => string;
 }
@@ -30,7 +32,7 @@ const itemVariant = {
   show: { opacity: 1, y: 0 },
 };
 
-export function ExamListItem({ template, onSelect, onDuplicate, onPublish }: ExamListItemProps) {
+export function ExamListItem({ template, onSelect, onDuplicate, onPublish, onArchive, onDelete }: ExamListItemProps) {
   const statusMap = {
     published: { icon: CheckCircle, label: "Đã xuất bản", color: "text-green-600", bgColor: "bg-green-50" },
     draft: { icon: Edit, label: "Bản nháp", color: "text-yellow-600", bgColor: "bg-yellow-50" },
@@ -96,6 +98,24 @@ export function ExamListItem({ template, onSelect, onDuplicate, onPublish }: Exa
                 title="Xuất bản"
               >
                 <Send className="w-4 h-4 text-green-500" />
+              </button>
+            )}
+            {template.status === "published" && onArchive && (
+              <button
+                onClick={() => onArchive(template.id)}
+                className="p-2 hover:bg-amber-50 rounded-lg transition-colors"
+                title="Lưu trữ"
+              >
+                <Archive className="w-4 h-4 text-amber-600" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(template)}
+                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                title="Xóa đề thi"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
               </button>
             )}
           </div>

@@ -7,7 +7,7 @@ import { ToastProvider } from '@/components/feedback/ToastProvider'
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin', 'vietnamese'] })
 
 export const metadata: Metadata = {
-  title: 'TOEIC AI Learning Platform',
+  title: 'TOEIC MASTER',
   description: 'Nền tảng học TOEIC thông minh với AI',
   icons: {
     icon: [

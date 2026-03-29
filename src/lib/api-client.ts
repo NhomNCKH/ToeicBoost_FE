@@ -13,6 +13,12 @@ import type {
   LogoutApiResponse,
   MeApiResponse,
 } from '@/types/api';
+import type {
+  LearnerAttemptResultData,
+  LearnerAttemptSessionData,
+  LearnerExamTemplateSummary,
+  PaginatedData,
+} from '@/types/learner-exam';
 import {
   clearAuthSession,
   getStoredAccessToken,
@@ -309,8 +315,11 @@ class ApiClient {
       presignImport: (data: { contentType: string; fileName?: string }): Promise<ApiResponse> =>
         this.request('/admin/question-groups/import/presign', { method: 'POST', body: JSON.stringify(data) }),
 
-      previewImport: (groups: unknown[]): Promise<ApiResponse> =>
-        this.request('/admin/question-groups/import/preview', { method: 'POST', body: JSON.stringify({ groups }) }),
+      previewImport: (groups: unknown[], sourceFileName?: string): Promise<ApiResponse> =>
+        this.request('/admin/question-groups/import/preview', {
+          method: 'POST',
+          body: JSON.stringify({ groups, sourceFileName }),
+        }),
 
       commitImport: (groups: unknown[], sourceFileName?: string): Promise<ApiResponse> =>
         this.request('/admin/question-groups/import/commit', { method: 'POST', body: JSON.stringify({ groups, sourceFileName }) }),
@@ -330,21 +339,24 @@ class ApiClient {
       list: (params?: {
         page?: number;
         limit?: number;
-        search?: string;
+        keyword?: string;
         status?: string;
-        type?: string;
+        mode?: string;
       }): Promise<ApiResponse> => {
-        const qs = params
-          ? '?' + new URLSearchParams(
-              Object.fromEntries(
-                Object.entries(params)
-                  .filter(([, v]) => v !== undefined && v !== '' && v !== 'all')
-                  .map(([k, v]) => [k, String(v)])
-              )
-            ).toString()
-          : '';
+        const query: Record<string, string> = {};
+        if (params) {
+          if (params.page !== undefined) query.page = String(params.page);
+          if (params.limit !== undefined) query.limit = String(params.limit);
+          if (params.keyword && params.keyword.trim() !== '') query.keyword = params.keyword.trim();
+          if (params.status && params.status !== 'all') query.status = params.status;
+          if (params.mode && params.mode !== 'all') query.mode = params.mode;
+        }
+        const qs = Object.keys(query).length > 0 ? `?${new URLSearchParams(query).toString()}` : '';
         return this.request(`/admin/exam-templates${qs}`, { method: 'GET' });
       },
+
+      stats: (): Promise<ApiResponse> =>
+        this.request('/admin/exam-templates/stats', { method: 'GET' }),
 
       create: (data: Record<string, unknown>): Promise<ApiResponse> =>
         this.request('/admin/exam-templates', { method: 'POST', body: JSON.stringify(data) }),
@@ -519,7 +531,7 @@ class ApiClient {
   // ---- Learner: Exam Attempts (/learner/exam-attempts) ----
   learner = {
     // Published exam templates visible to students
-    listPublishedTemplates: (params?: { mode?: string }): Promise<ApiResponse> => {
+    listPublishedTemplates: (params?: { mode?: string; keyword?: string; page?: number; limit?: number }): Promise<ApiResponse<PaginatedData<LearnerExamTemplateSummary>>> => {
       const qs = params
         ? '?' + new URLSearchParams(
             Object.fromEntries(
@@ -533,7 +545,7 @@ class ApiClient {
     },
 
     examAttempt: {
-      start: (data: { examTemplateId: string; mode?: string }): Promise<ApiResponse> =>
+      start: (data: { examTemplateId: string; mode?: string }): Promise<ApiResponse<LearnerAttemptSessionData>> =>
         this.request('/learner/exam-attempts', { method: 'POST', body: JSON.stringify(data) }),
 
       saveAnswers: (
@@ -547,13 +559,13 @@ class ApiClient {
             answerPayload?: Record<string, unknown>;
           }[];
         },
-      ): Promise<ApiResponse> =>
+      ): Promise<ApiResponse<unknown>> =>
         this.request(`/learner/exam-attempts/${attemptId}/answers`, { method: 'PUT', body: JSON.stringify(data) }),
 
-      submit: (attemptId: string, data?: Record<string, unknown>): Promise<ApiResponse> =>
+      submit: (attemptId: string, data?: Record<string, unknown>): Promise<ApiResponse<unknown>> =>
         this.request(`/learner/exam-attempts/${attemptId}/submit`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
 
-      getResult: (attemptId: string): Promise<ApiResponse> =>
+      getResult: (attemptId: string): Promise<ApiResponse<LearnerAttemptResultData>> =>
         this.request(`/learner/exam-attempts/${attemptId}/result`, { method: 'GET' }),
     },
   };

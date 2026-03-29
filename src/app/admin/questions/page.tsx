@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { getSignedMediaUrl } from "@/lib/media-url";
-import { AdminConfirmDialog } from "@/components/admin";
+import { AdminConfirmDialog, AdminPagination } from "@/components/admin";
 import { useToast } from "@/hooks/useToast";
 import { ActionIcon } from "@/components/ui/action-icons";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
@@ -35,16 +35,79 @@ type WorkflowStats = {
   archived: number;
 };
 
+type PaginationState = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+function parseQuestionGroupsResponse(raw: any): {
+  items: QuestionGroup[];
+  pagination: PaginationState;
+} {
+  const fallback: PaginationState = { page: 1, limit: 20, total: 0, totalPages: 1 };
+  if (!raw) return { items: [], pagination: fallback };
+
+  if (Array.isArray(raw)) {
+    return {
+      items: raw as QuestionGroup[],
+      pagination: { page: 1, limit: raw.length || 20, total: raw.length, totalPages: 1 },
+    };
+  }
+
+  if (Array.isArray(raw.data)) {
+    const pg = raw.pagination ?? {};
+    const total = Number(pg.total ?? raw.data.length ?? 0);
+    const limit = Number(pg.limit ?? raw.data.length ?? 20);
+    const page = Number(pg.page ?? 1);
+    return {
+      items: raw.data as QuestionGroup[],
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Number(pg.totalPages ?? Math.max(1, Math.ceil(total / Math.max(limit, 1)))),
+      },
+    };
+  }
+
+  if (Array.isArray(raw.items)) {
+    const total = Number(raw.total ?? raw.items.length ?? 0);
+    const limit = Number(raw.limit ?? raw.items.length ?? 20);
+    const page = Number(raw.page ?? 1);
+    return {
+      items: raw.items as QuestionGroup[],
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / Math.max(limit, 1))),
+      },
+    };
+  }
+
+  return { items: [], pagination: fallback };
+}
+
 const PARTS = ["P1","P2","P3","P4","P5","P6","P7"];
 const LEVELS = ["easy","medium","hard","expert"];
 const STATUSES = ["draft","in_review","approved","published","archived"];
 const STATUS_LABEL: Record<string,string> = { draft:"Nháp", in_review:"Chờ duyệt", approved:"Đã duyệt", published:"Xuất bản", archived:"Lưu trữ" };
-const STATUS_COLOR: Record<string,string> = {
-  draft:"bg-yellow-100 text-yellow-700", in_review:"bg-blue-100 text-blue-700",
-  approved:"bg-purple-100 text-purple-700", published:"bg-green-100 text-green-700",
-  archived:"bg-gray-100 text-gray-600",
+/** Badge đồng bộ globals.css (.qg-status / .qg-level) — dark mode: nền mờ + viền, giống status-chip users */
+const STATUS_CLASS: Record<string, string> = {
+  draft: "qg-status qg-status--draft",
+  in_review: "qg-status qg-status--in_review",
+  approved: "qg-status qg-status--approved",
+  published: "qg-status qg-status--published",
+  archived: "qg-status qg-status--archived",
 };
-const LEVEL_COLOR: Record<string,string> = { easy:"bg-green-100 text-green-700", medium:"bg-yellow-100 text-yellow-700", hard:"bg-red-100 text-red-700", expert:"bg-purple-100 text-purple-700" };
+const LEVEL_CLASS: Record<string, string> = {
+  easy: "qg-level qg-level--easy",
+  medium: "qg-level qg-level--medium",
+  hard: "qg-level qg-level--hard",
+  expert: "qg-level qg-level--expert",
+};
 
 // ─── Tag Modal ────────────────────────────────────────────────────────────────
 function TagModal({
@@ -149,12 +212,14 @@ function QuestionGroupModal({
     id?: string; questionNo: number; prompt: string; answerKey: string; 
     options: { optionKey: string; content: string; isCorrect: boolean }[];
     audioFile?: File | null; audioUrl?: string; transcript?: string;
+    metadata?: Record<string, unknown>;
   };
   const [questions, setQuestions] = useState<QItem[]>(
     group?.questions?.map(q => ({ 
       id: q.id, questionNo: q.questionNo, prompt: q.prompt, answerKey: q.answerKey, options: q.options,
       audioUrl: (q as any).metadata?.audioUrl,
       transcript: (q as any).metadata?.transcript,
+      metadata: (q as any).metadata ?? {},
     })) ?? []
   );
 
@@ -370,6 +435,7 @@ function QuestionGroupModal({
         ...form,
         questions: questions.map(q => ({
           questionNo: q.questionNo, prompt: q.prompt, answerKey: q.answerKey,
+          metadata: q.metadata ?? {},
           options: q.options.map((o, idx) => ({ optionKey: o.optionKey, content: o.content, isCorrect: o.isCorrect, sortOrder: idx + 1 }))
         })),
         assets: allAssets,
@@ -881,7 +947,15 @@ function TagsTab({ onDataChanged }: { onDataChanged?: () => void }) {
 }
 
 // ─── Question Groups Tab ──────────────────────────────────────────────────────
-function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataChanged?: () => void }) {
+function QuestionGroupsTab({
+  tags,
+  workflowStats,
+  onDataChanged,
+}: {
+  tags: TagItem[];
+  workflowStats: WorkflowStats;
+  onDataChanged?: () => void;
+}) {
   const { notify } = useToast();
   const [groups, setGroups] = useState<QuestionGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -890,6 +964,13 @@ function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataCha
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPart, setFilterPart] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationState>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
   const [modal, setModal] = useState<{open:boolean;group?:QuestionGroup}>({open:false});
   const [actionLoading, setActionLoading] = useState<string|null>(null);
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
@@ -906,31 +987,31 @@ function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataCha
     return () => window.clearTimeout(timeout);
   }, [search]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterStatus, filterPart]);
+
   const fetchGroups = useCallback(async()=>{
     setLoading(true); setError(null);
     try {
       const res = await apiClient.admin.questionBank.listQuestionGroups({
+        page,
         keyword: debouncedSearch || undefined,
         status: filterStatus!=="all"?filterStatus:undefined,
         part: filterPart!=="all"?filterPart:undefined,
-        limit: 100
+        limit: 20
       });
-
-      const resData = res.data as any;
-      let items = [];
-      if (Array.isArray(resData)) {
-        items = resData;
-      } else if (resData && Array.isArray(resData.data)) {
-        items = resData.data;
-      } else if (resData && Array.isArray(resData.items)) {
-        items = resData.items;
+      const parsed = parseQuestionGroupsResponse(res.data as any);
+      setGroups(parsed.items);
+      setPagination(parsed.pagination);
+      if (parsed.pagination.totalPages > 0 && page > parsed.pagination.totalPages) {
+        setPage(parsed.pagination.totalPages);
       }
-      setGroups(items);
     } catch(e:any){
       setError(e.message||"Không thể tải dữ liệu");
     }
     finally{setLoading(false);}
-  },[debouncedSearch,filterStatus,filterPart]);
+  },[page,debouncedSearch,filterStatus,filterPart]);
 
   useEffect(()=>{fetchGroups();},[fetchGroups]);
 
@@ -1075,10 +1156,18 @@ function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataCha
   const selectAll = () => setSelected(groups.length===selected.size?new Set():new Set(groups.map(g=>g.id)));
 
   const stats = {
-    total:groups.length,
-    published:groups.filter(g=>g.status==="published").length,
-    draft:groups.filter(g=>g.status==="draft").length,
-    in_review:groups.filter(g=>g.status==="in_review").length,
+    total: workflowStats.totalGroups,
+    published: workflowStats.published,
+    draft:
+      Math.max(
+        0,
+        workflowStats.totalGroups -
+          workflowStats.inReview -
+          workflowStats.approved -
+          workflowStats.published -
+          workflowStats.archived,
+      ),
+    in_review: workflowStats.inReview,
   };
 
   return (
@@ -1177,8 +1266,8 @@ function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataCha
                   <p className="text-xs text-gray-400 font-mono">{group.code}</p>
                 </div>
                 <span className="hidden md:block w-16 text-center text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{group.part}</span>
-                <span className={`hidden md:block w-20 text-center text-xs font-medium px-2 py-0.5 rounded-lg ${LEVEL_COLOR[group.level]??"bg-gray-100 text-gray-600"}`}>{group.level}</span>
-                <span className={`hidden md:block w-24 text-center text-xs font-medium px-2 py-0.5 rounded-lg ${STATUS_COLOR[group.status]??"bg-gray-100 text-gray-600"}`}>{STATUS_LABEL[group.status]??group.status}</span>
+                <span className={`hidden md:block w-20 text-center text-xs font-medium px-2 py-1 rounded-full ${LEVEL_CLASS[group.level] ?? "qg-level qg-level--default"}`}>{group.level}</span>
+                <span className={`hidden md:block w-24 text-center text-xs font-medium px-2 py-1 rounded-full ${STATUS_CLASS[group.status] ?? "qg-status qg-status--default"}`}>{STATUS_LABEL[group.status] ?? group.status}</span>
                 <div className="flex items-center gap-1.5 w-36 justify-end flex-shrink-0">
                   <ActionMenu group={group} onAction={handleAction} loading={!!isActioning}/>
                   <button
@@ -1198,6 +1287,17 @@ function QuestionGroupsTab({ tags, onDataChanged }: { tags: TagItem[]; onDataCha
               </motion.div>
             );
           })}
+          {pagination.totalPages > 1 && (
+            <AdminPagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={pagination.limit}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="nhóm"
+            />
+          )}
         </div>
       )}
 
@@ -1308,38 +1408,6 @@ function ImportQuestionGroupsModal({
     setErr("");
     setLoading(true);
     try {
-      const presign = await apiClient.admin.questionBank.presignImport({
-        contentType: file.type || "application/json",
-        fileName: file.name,
-      });
-      const presignData = (presign.data ?? {}) as { signedPutUrl?: string };
-      if (!presignData.signedPutUrl) {
-        throw new Error("Không lấy được signed URL cho file import");
-      }
-
-      const uploadImportWithFallback = async () => {
-        try {
-          const uploadRes = await fetch(presignData.signedPutUrl!, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": file.type || "application/json" },
-          });
-          if (!uploadRes.ok) throw new Error(`Direct import upload failed: ${uploadRes.status}`);
-        } catch {
-          const formData = new FormData();
-          formData.append("signedPutUrl", presignData.signedPutUrl!);
-          formData.append("contentType", file.type || "application/json");
-          formData.append("file", file);
-          const proxyRes = await fetch("/api/s3-upload", {
-            method: "POST",
-            body: formData,
-          });
-          if (!proxyRes.ok) throw new Error("Upload file import lên S3 thất bại");
-        }
-      };
-
-      await uploadImportWithFallback();
-
       const text = await file.text();
       const parsed = JSON.parse(text);
       const parsedGroups = Array.isArray(parsed) ? parsed : parsed?.groups;
@@ -1347,7 +1415,7 @@ function ImportQuestionGroupsModal({
         throw new Error("File JSON phải chứa mảng groups hợp lệ");
       }
 
-      const previewRes = await apiClient.admin.questionBank.previewImport(parsedGroups);
+      const previewRes = await apiClient.admin.questionBank.previewImport(parsedGroups, file.name);
       setGroups(parsedGroups);
       setPreview(previewRes.data);
     } catch (e: any) {
@@ -1364,6 +1432,35 @@ function ImportQuestionGroupsModal({
     setCommitting(true);
     setErr("");
     try {
+      if (!file) throw new Error("Thiếu file import");
+      const presign = await apiClient.admin.questionBank.presignImport({
+        contentType: file.type || "application/json",
+        fileName: file.name,
+      });
+      const presignData = (presign.data ?? {}) as { signedPutUrl?: string };
+      if (!presignData.signedPutUrl) {
+        throw new Error("Không lấy được signed URL cho file import");
+      }
+
+      try {
+        const uploadRes = await fetch(presignData.signedPutUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type || "application/json" },
+        });
+        if (!uploadRes.ok) throw new Error(`Direct import upload failed: ${uploadRes.status}`);
+      } catch {
+        const formData = new FormData();
+        formData.append("signedPutUrl", presignData.signedPutUrl);
+        formData.append("contentType", file.type || "application/json");
+        formData.append("file", file);
+        const proxyRes = await fetch("/api/s3-upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!proxyRes.ok) throw new Error("Upload file import lên S3 thất bại");
+      }
+
       await apiClient.admin.questionBank.commitImport(groups, file?.name);
       await onImported();
       notify({
@@ -1678,25 +1775,36 @@ export default function AdminQuestionsPage() {
 
   const fetchWorkflowStats = useCallback(async () => {
     try {
-      const [tagsRes, groupsRes] = await Promise.all([
+      const [
+        tagsRes,
+        totalRes,
+        inReviewRes,
+        approvedRes,
+        publishedRes,
+        archivedRes,
+      ] = await Promise.all([
         apiClient.admin.questionBank.listTags(),
-        apiClient.admin.questionBank.listQuestionGroups({ limit: 200 }),
+        apiClient.admin.questionBank.listQuestionGroups({ page: 1, limit: 1 }),
+        apiClient.admin.questionBank.listQuestionGroups({ page: 1, limit: 1, status: "in_review" }),
+        apiClient.admin.questionBank.listQuestionGroups({ page: 1, limit: 1, status: "approved" }),
+        apiClient.admin.questionBank.listQuestionGroups({ page: 1, limit: 1, status: "published" }),
+        apiClient.admin.questionBank.listQuestionGroups({ page: 1, limit: 1, status: "archived" }),
       ]);
 
       const tagItems = Array.isArray(tagsRes.data) ? tagsRes.data : ((tagsRes.data as any)?.items ?? []);
-      const groupsData = groupsRes.data as any;
-      let groups: QuestionGroup[] = [];
-      if (Array.isArray(groupsData)) groups = groupsData as QuestionGroup[];
-      else if (Array.isArray(groupsData?.data)) groups = groupsData.data as QuestionGroup[];
-      else if (Array.isArray(groupsData?.items)) groups = groupsData.items as QuestionGroup[];
+      const totalParsed = parseQuestionGroupsResponse(totalRes.data as any);
+      const inReviewParsed = parseQuestionGroupsResponse(inReviewRes.data as any);
+      const approvedParsed = parseQuestionGroupsResponse(approvedRes.data as any);
+      const publishedParsed = parseQuestionGroupsResponse(publishedRes.data as any);
+      const archivedParsed = parseQuestionGroupsResponse(archivedRes.data as any);
 
       setWorkflowStats({
         tagCount: tagItems.length,
-        totalGroups: groups.length,
-        inReview: groups.filter((g) => g.status === "in_review").length,
-        approved: groups.filter((g) => g.status === "approved").length,
-        published: groups.filter((g) => g.status === "published").length,
-        archived: groups.filter((g) => g.status === "archived").length,
+        totalGroups: totalParsed.pagination.total,
+        inReview: inReviewParsed.pagination.total,
+        approved: approvedParsed.pagination.total,
+        published: publishedParsed.pagination.total,
+        archived: archivedParsed.pagination.total,
       });
     } catch {
       // Keep existing stats on transient API errors
@@ -1751,7 +1859,7 @@ export default function AdminQuestionsPage() {
         <motion.div key={activeTab} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.15}}>
           {activeTab==="tags"
             ? <TagsTab onDataChanged={fetchWorkflowStats} />
-            : <QuestionGroupsTab tags={tags} onDataChanged={fetchWorkflowStats} />}
+            : <QuestionGroupsTab tags={tags} workflowStats={workflowStats} onDataChanged={fetchWorkflowStats} />}
         </motion.div>
       </AnimatePresence>
     </div>

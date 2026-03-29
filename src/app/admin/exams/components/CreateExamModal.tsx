@@ -6,7 +6,22 @@ import { X, Loader2, AlertCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from '@/hooks/useAuth';
 
-interface Props { onClose: () => void; onSuccess: (id: string) => void; }
+/** Dữ liệu form vừa gửi — dùng hiển thị ngay modal chi tiết, không phải chờ GET */
+export interface CreateExamSuccessSnapshot {
+  code: string;
+  name: string;
+  mode: string;
+  totalDurationSec: number;
+  totalQuestions: number;
+  instructions?: string;
+  shuffleQuestionOrder: boolean;
+  shuffleOptionOrder: boolean;
+}
+
+interface Props {
+  onClose: () => void;
+  onSuccess: (id: string, snapshot: CreateExamSuccessSnapshot) => void;
+}
 
 const MODES = [
   { value:"practice", label:"Practice", desc:"Luyện tập theo từng phần" },
@@ -56,7 +71,16 @@ export function CreateExamModal({ onClose, onSuccess }: Props) {
       const res = await apiClient.admin.examTemplate.create(payload);
       const id = (res.data as any)?.id;
       if (!id) throw new Error("Không nhận được ID từ server");
-      onSuccess(id);
+      onSuccess(id, {
+        code: form.code.trim(),
+        name: form.name.trim(),
+        mode: form.mode,
+        totalDurationSec: Number(form.totalDurationSec),
+        totalQuestions: Number(form.totalQuestions),
+        instructions: form.instructions.trim() || undefined,
+        shuffleQuestionOrder: form.shuffleQuestionOrder,
+        shuffleOptionOrder: form.shuffleOptionOrder,
+      });
     } catch(e:any){setErr(e.message||"Tạo thất bại");}
     finally{setSaving(false);}
   };

@@ -1,4 +1,5 @@
 // app/admin/exams/components/ExamFilters.tsx
+import type { ReactNode } from "react";
 import { Search, Grid, List } from "lucide-react";
 import { ExamStatus, ExamMode, ViewMode } from "../types";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
@@ -12,6 +13,7 @@ interface ExamFiltersProps {
   onModeChange: (value: ExamMode) => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  actionSlot?: ReactNode;
 }
 
 export function ExamFilters({
@@ -23,6 +25,7 @@ export function ExamFilters({
   onModeChange,
   viewMode,
   onViewModeChange,
+  actionSlot,
 }: ExamFiltersProps) {
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -78,6 +81,7 @@ export function ExamFilters({
               <List className="w-4 h-4" />
             </button>
           </div>
+          {actionSlot}
         </div>
       </div>
     </div>

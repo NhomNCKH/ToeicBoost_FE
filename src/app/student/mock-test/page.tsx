@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from '@/hooks/useAuth';
 import { motion } from "framer-motion";
 import {
   FileText,
@@ -14,17 +13,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
+import type { LearnerExamTemplateSummary, PaginatedData } from "@/types/learner-exam";
 
-interface ExamTemplate {
-  id: string;
-  name: string;
-  description?: string;
-  mode?: string;
-  status: string;
-  totalDurationSec?: number;
-  totalQuestions?: number;
-  difficulty?: string;
-}
+type ExamTemplate = LearnerExamTemplateSummary & { difficulty?: string; description?: string };
 
 export default function MockTestPage() {
   const [templates, setTemplates] = useState<ExamTemplate[]>([]);
@@ -36,10 +27,8 @@ export default function MockTestPage() {
     setError(null);
     try {
       const res = await apiClient.learner.listPublishedTemplates();
-      const items: ExamTemplate[] = Array.isArray(res.data)
-        ? res.data
-        : (res.data as any)?.items ?? [];
-      setTemplates(items);
+      const payload = res.data as PaginatedData<ExamTemplate>;
+      setTemplates(payload.data ?? []);
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách đề thi");
     } finally {

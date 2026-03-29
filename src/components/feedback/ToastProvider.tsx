@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (payload: ToastPayload) => {
       const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const variant = payload.variant ?? "info";
-      const durationMs = payload.durationMs ?? 2800;
+      const durationMs = payload.durationMs ?? 3000;
 
       setToasts((prev) => [...prev, { ...payload, id, variant }]);
 
@@ -95,7 +95,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <div className="mt-0.5 shrink-0">{getToastIcon(toast.variant)}</div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-900">{toast.title}</p>
-                  {toast.message ? <p className="text-xs text-slate-600">{toast.message}</p> : null}
+                  {toast.message ? (
+                    <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-xs text-slate-600">
+                      {toast.message}
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   onClick={() => dismiss(toast.id)}

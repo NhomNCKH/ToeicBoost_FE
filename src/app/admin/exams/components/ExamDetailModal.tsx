@@ -5,8 +5,17 @@ import {
   X, Loader2, AlertCircle, CheckCircle, Zap,
   Settings, Layers, Globe, Archive,
   RefreshCw, Info, Search, Tag, Clock, Eye,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+import type { ApiResponse } from "@/types/api";
 import { apiClient } from "@/lib/api-client";
+import { formatExamPublishError } from "../utils/helpers";
+import { useToast } from "@/hooks/useToast";
+import {
+  ExamPreviewModal,
+  type PreviewTemplatePayload,
+  type TemplatePreviewValidation,
+} from "./ExamPreviewModal";
 import { ActionIcon } from "@/components/ui/action-icons";
 import { SharedDropdown } from "@/components/ui/shared-dropdown";
 
@@ -28,10 +37,66 @@ const STATUS_COLOR: Record<string,string> = { draft:"bg-amber-100 text-amber-700
 const STATUS_LABEL: Record<string,string> = { draft:"Nháp", published:"Đã xuất bản", archived:"Lưu trữ" };
 const MODE_LABEL: Record<string,string> = { practice:"Practice", mock_test:"Mock Test", official_exam:"Official Exam" };
 
+const WORKFLOW_TAB_IDS = ["overview", "sections", "rules", "items", "validate"] as const;
+type WorkflowTabId = (typeof WORKFLOW_TAB_IDS)[number];
+const WORKFLOW_TAB_LABEL: Record<WorkflowTabId, string> = {
+  overview: "Thông tin",
+  sections: "Cấu trúc",
+  rules: "Quy tắc",
+  items: "Câu hỏi",
+  validate: "Xuất bản",
+};
+
+/** Props tối thiểu + optional từ danh sách / form tạo mới — dùng render ngay không chờ GET */
+export type ExamDetailModalTemplateInput = {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  status: string;
+  mode?: string;
+  totalQuestions?: number;
+  totalDurationSec?: number;
+  instructions?: string;
+  shuffleQuestionOrder?: boolean;
+  shuffleOptionOrder?: boolean;
+  updatedAt?: string;
+  sections?: Section[];
+  rules?: Rule[];
+  items?: Item[];
+};
+
+function examTemplateFromModalProps(t: ExamDetailModalTemplateInput): ExamTemplate {
+  return {
+    id: t.id,
+    code: t.code ?? "",
+    name: t.name,
+    mode: t.mode ?? "mock_test",
+    status: t.status,
+    totalDurationSec:
+      typeof t.totalDurationSec === "number" && t.totalDurationSec > 0 ? t.totalDurationSec : 7200,
+    totalQuestions:
+      typeof t.totalQuestions === "number" && t.totalQuestions > 0 ? t.totalQuestions : 200,
+    instructions: t.instructions,
+    shuffleQuestionOrder: t.shuffleQuestionOrder,
+    shuffleOptionOrder: t.shuffleOptionOrder,
+    sections: t.sections,
+    rules: t.rules,
+    items: t.items,
+  };
+}
 
 
 // ─── Sections Tab ─────────────────────────────────────────────────────────────
-function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: () => void }) {
+function SectionsTab({
+  template,
+  onRefresh,
+  onSaved,
+}: {
+  template: ExamTemplate;
+  onRefresh: () => void;
+  onSaved?: () => void;
+}) {
   const [sections, setSections] = useState<Section[]>(template.sections ?? []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -92,8 +157,20 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
   const handleSave = async () => {
     setSaving(true); setErr(""); setOk(false);
     try {
-      await apiClient.admin.examTemplate.replaceSections(template.id, sections);
-      setOk(true); onRefresh();
+      const payload = sections.map((section, idx) => ({
+        part: section.part,
+        sectionOrder: Number(section.sectionOrder ?? idx + 1),
+        expectedGroupCount: Number(section.expectedGroupCount ?? 1),
+        expectedQuestionCount: Number(section.expectedQuestionCount ?? 1),
+        durationSec:
+          section.durationSec !== undefined && section.durationSec !== null
+            ? Number(section.durationSec)
+            : undefined,
+      }));
+      await apiClient.admin.examTemplate.replaceSections(template.id, payload);
+      setOk(true);
+      onRefresh();
+      onSaved?.();
       setTimeout(() => setOk(false), 2000);
     } catch (e: any) { setErr(e.message || "Lưu thất bại"); }
     finally { setSaving(false); }
@@ -194,7 +271,15 @@ function SectionsTab({ template, onRefresh }: { template: ExamTemplate; onRefres
 }
 
 // ─── Rules Tab ────────────────────────────────────────────────────────────────
-function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: () => void }) {
+function RulesTab({
+  template,
+  onRefresh,
+  onSaved,
+}: {
+  template: ExamTemplate;
+  onRefresh: () => void;
+  onSaved?: () => void;
+}) {
   const [rules, setRules] = useState<Rule[]>(template.rules ?? []);
   const [tags, setTags] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -229,8 +314,21 @@ function RulesTab({ template, onRefresh }: { template: ExamTemplate; onRefresh: 
   const handleSave = async () => {
     setSaving(true); setErr(""); setOk(false);
     try {
-      await apiClient.admin.examTemplate.replaceRules(template.id, rules);
-      setOk(true); onRefresh();
+      const payload = rules.map((rule) => ({
+        part: rule.part,
+        questionCount: Number(rule.questionCount ?? 1),
+        groupCount:
+          rule.groupCount !== undefined && rule.groupCount !== null
+            ? Number(rule.groupCount)
+            : undefined,
+        levelDistribution: rule.levelDistribution ?? {},
+        requiredTagCodes: rule.requiredTagCodes ?? [],
+        excludedTagCodes: (rule as any).excludedTagCodes ?? [],
+      }));
+      await apiClient.admin.examTemplate.replaceRules(template.id, payload);
+      setOk(true);
+      onRefresh();
+      onSaved?.();
       setTimeout(() => setOk(false), 2000);
     } catch (e: any) { setErr(e.message || "Lưu thất bại"); }
     finally { setSaving(false); }
@@ -641,25 +739,36 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
   const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [result, setResult] = useState<ValidationResult|null>(null);
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<{
+    template: PreviewTemplatePayload;
+    validation: TemplatePreviewValidation;
+  } | null>(null);
   const [err, setErr] = useState("");
 
   const handleValidate = async() => {
     setValidating(true); setErr(""); setResult(null);
     try {
       const res = await apiClient.admin.examTemplate.validate(template.id);
-      const data = (res.data as any) ?? { valid: res.statusCode===200 };
-      
+      const raw = res.data as Record<string, unknown> | undefined;
+      const data = {
+        valid: Boolean(raw?.isValid ?? raw?.valid),
+        errors: Array.isArray(raw?.errors) ? [...(raw.errors as string[])] : [],
+        warnings: Array.isArray(raw?.warnings) ? [...(raw.warnings as string[])] : [],
+      };
+
       // Kiểm tra tổng số câu hỏi nếu là Mock Test hoặc Official Exam
       if (template.mode !== "practice" && template.totalQuestions !== 200) {
-        if (!data.warnings) data.warnings = [];
         data.warnings.push("Lưu ý: Đề thi thử chuẩn TOEIC thường yêu cầu đủ 200 câu hỏi.");
       }
 
       setResult(data);
-      const prevRes = await apiClient.admin.examTemplate.preview(template.id);
-      setPreview(prevRes.data);
-    } catch(e:any){setErr(e.message||"Validate thất bại");}
+      const prevRes = (await apiClient.admin.examTemplate.preview(
+        template.id,
+      )) as ApiResponse<{ template: PreviewTemplatePayload; validation: TemplatePreviewValidation }>;
+      setPreview(prevRes.data ?? null);
+    } catch (e: unknown) {
+      setErr(formatExamPublishError(e));
+    }
     finally{setValidating(false);}
   };
 
@@ -669,7 +778,9 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
     try {
       await apiClient.admin.examTemplate.publish(template.id);
       onRefresh(); onClose();
-    } catch(e:any){setErr(e.message||"Xuất bản thất bại");}
+    } catch (e: unknown) {
+      setErr(formatExamPublishError(e));
+    }
     finally{setPublishing(false);}
   };
 
@@ -695,8 +806,13 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
     <div className="space-y-6">
       <AnimatePresence>
         {err && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />{err}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span className="whitespace-pre-wrap break-words">{err}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -744,8 +860,11 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
             <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-4">
               <h5 className="font-bold text-gray-800 text-xs uppercase">Cấu trúc thực tế</h5>
               <div className="space-y-2">
-                {template.sections?.map(s => {
-                  const actualCount = template.items?.filter((i:any) => i.sectionId === s.id).length || 0;
+                {(preview.template?.sections ?? template.sections)?.map((s) => {
+                  const tplItems = preview.template?.items ?? template.items;
+                  const actualCount =
+                    tplItems?.filter((i) => (i as { sectionId?: string }).sectionId === s.id)
+                      .length || 0;
                   const isComplete = actualCount === s.expectedGroupCount;
                   return (
                     <div key={s.id} className={`flex items-center justify-between p-3 rounded border ${
@@ -839,16 +958,7 @@ function ValidateTab({ template, onRefresh, onClose }: { template: ExamTemplate;
 
 // ─── Main ExamDetailModal (exported) ─────────────────────────────────────────
 interface ExamDetailModalProps {
-  template: {
-    id: string;
-    name: string;
-    description?: string;
-    status: string;
-    mode?: string;
-    totalQuestions?: number;
-    totalDurationSec?: number;
-    updatedAt?: string;
-  };
+  template: ExamDetailModalTemplateInput;
   onClose: () => void;
   onRefresh: () => void;
   initialTab?: "overview" | "sections" | "rules" | "items" | "validate";
@@ -857,34 +967,84 @@ interface ExamDetailModalProps {
 }
 
 export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "overview" }: ExamDetailModalProps) {
+  const { notify } = useToast();
   const [activeTab, setActiveTab] = useState<"overview" | "sections" | "rules" | "items" | "validate">(initialTab);
-  const [templateDetail, setTemplateDetail] = useState<ExamTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [templateDetail, setTemplateDetail] = useState<ExamTemplate>(() => examTemplateFromModalProps(template));
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewPayload, setPreviewPayload] = useState<{
+    template: PreviewTemplatePayload;
+    validation: TemplatePreviewValidation;
+  } | null>(null);
+
+  const workflowIndex = WORKFLOW_TAB_IDS.indexOf(activeTab as WorkflowTabId);
+  const goWorkflowPrev = () => {
+    if (workflowIndex <= 0) return;
+    setActiveTab(WORKFLOW_TAB_IDS[workflowIndex - 1]);
+  };
+  const goWorkflowNext = () => {
+    if (workflowIndex < 0 || workflowIndex >= WORKFLOW_TAB_IDS.length - 1) return;
+    setActiveTab(WORKFLOW_TAB_IDS[workflowIndex + 1]);
+  };
 
   const fetchDetail = useCallback(async () => {
-    setLoading(true); setErr("");
+    setRefreshing(true);
+    setErr("");
     try {
       const res = await apiClient.admin.examTemplate.get(template.id);
       setTemplateDetail(res.data as ExamTemplate);
-    } catch (e: any) { setErr(e.message || "Không thể tải chi tiết"); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      setErr(e.message || "Không thể tải chi tiết");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [template.id]);
+
+  useEffect(() => {
+    setTemplateDetail(examTemplateFromModalProps(template));
+    setErr("");
+    // Chỉ khi mở đề khác (id đổi); không gắn cả `template` để tránh reset khi parent re-render cùng id
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: template.id only
   }, [template.id]);
 
   const handlePreview = async () => {
+    setPreviewLoading(true);
+    setPreviewPayload(null);
     try {
-      const res = await apiClient.admin.examTemplate.preview(template.id);
-      // Mở preview trong tab mới hoặc modal khác (tùy logic hệ thống)
-      // Ở đây ta có thể giả định backend trả về dữ liệu đề thi đầy đủ
-      alert("Tính năng xem trước đề thi đang được chuẩn bị. Dữ liệu đã sẵn sàng!");
-    } catch (e: any) {
-      alert(e.message || "Không thể lấy dữ liệu xem trước");
+      const res = (await apiClient.admin.examTemplate.preview(
+        template.id,
+      )) as ApiResponse<{
+        template: PreviewTemplatePayload;
+        validation: TemplatePreviewValidation;
+      }>;
+      const inner = res.data;
+      if (!inner?.template) {
+        notify({
+          title: "Không có dữ liệu xem trước",
+          message: "Máy chủ không trả về nội dung đề thi.",
+          variant: "error",
+        });
+        return;
+      }
+      setPreviewPayload(inner);
+      setPreviewOpen(true);
+    } catch (e: unknown) {
+      notify({
+        title: "Không thể tải xem trước",
+        message: formatExamPublishError(e),
+        variant: "error",
+      });
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
   useEffect(() => { fetchDetail(); }, [fetchDetail]);
 
   return (
+    <>
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -899,10 +1059,17 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
           </div>
           <div className="flex items-center gap-3 ml-3">
             <button
+              type="button"
               onClick={handlePreview}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold hover:bg-gray-50 transition-all border border-gray-200"
+              disabled={previewLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold hover:bg-gray-50 transition-all border border-gray-200 disabled:pointer-events-none disabled:opacity-50"
             >
-              <Eye className="w-4 h-4" /> Xem trước
+              {previewLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}{" "}
+              Xem trước
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg flex-shrink-0">
               <X className="w-5 h-5 text-gray-500" />
@@ -943,25 +1110,30 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content: luôn có templateDetail từ props trước — GET chỉ đồng bộ thêm, không chặn cả khối */}
         <div className="flex-1 overflow-y-auto p-6 bg-white">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-32 gap-4">
-              <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-              <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Đang tải dữ liệu...</p>
-            </div>
-          ) : err ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-6 bg-white rounded-[40px] border border-red-100 shadow-xl shadow-red-50">
-              <div className="p-6 bg-red-50 rounded-full"><AlertCircle className="w-12 h-12 text-red-500" /></div>
-              <div className="text-center">
-                <h3 className="text-xl font-black text-slate-800 mb-2">Đã xảy ra lỗi</h3>
-                <p className="text-sm font-medium text-slate-500">{err}</p>
-              </div>
-              <button onClick={fetchDetail} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" /> Thử lại ngay
+          {err && (
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-start gap-2 text-sm text-red-800">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {err}
+              </p>
+              <button
+                type="button"
+                onClick={fetchDetail}
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+              >
+                <RefreshCw className="h-4 w-4" /> Thử lại
               </button>
             </div>
-          ) : templateDetail ? (
+          )}
+          {refreshing && (
+            <div className="sticky top-0 z-10 mb-4 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-900 shadow-sm">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-600" />
+              Đang đồng bộ dữ liệu từ máy chủ…
+            </div>
+          )}
+          {templateDetail ? (
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -1011,15 +1183,72 @@ export function ExamDetailModal({ template, onClose, onRefresh, initialTab = "ov
                     </div>
                   </div>
                 )}
-                {activeTab === "sections" && <SectionsTab template={templateDetail} onRefresh={fetchDetail} />}
-                {activeTab === "rules" && <RulesTab template={templateDetail} onRefresh={fetchDetail} />}
+                {activeTab === "sections" && (
+                  <SectionsTab
+                    template={templateDetail}
+                    onRefresh={fetchDetail}
+                    onSaved={() => setActiveTab("rules")}
+                  />
+                )}
+                {activeTab === "rules" && (
+                  <RulesTab
+                    template={templateDetail}
+                    onRefresh={fetchDetail}
+                    onSaved={() => setActiveTab("items")}
+                  />
+                )}
                 {activeTab === "items" && <ItemsTab template={templateDetail} onRefresh={fetchDetail} />}
                 {activeTab === "validate" && <ValidateTab template={templateDetail} onRefresh={() => { fetchDetail(); onRefresh(); }} onClose={onClose} />}
               </motion.div>
             </AnimatePresence>
           ) : null}
         </div>
+
+        {templateDetail && (
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-3">
+            <p className="text-xs text-gray-500 hidden sm:block">
+              Chuyển bước bằng nút dưới đây hoặc bấm số trên thanh quy trình.
+            </p>
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={goWorkflowPrev}
+                disabled={workflowIndex <= 0}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Trước
+              </button>
+              <button
+                type="button"
+                onClick={goWorkflowNext}
+                disabled={workflowIndex >= WORKFLOW_TAB_IDS.length - 1}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-40"
+              >
+                Tiếp theo
+                <ChevronRight className="h-4 w-4" />
+                {workflowIndex >= 0 && workflowIndex < WORKFLOW_TAB_IDS.length - 1 && (
+                  <span className="hidden md:inline font-medium opacity-90">
+                    ({WORKFLOW_TAB_LABEL[WORKFLOW_TAB_IDS[workflowIndex + 1]]})
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
+
+      <ExamPreviewModal
+        open={previewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewPayload(null);
+        }}
+        loading={false}
+        errorMessage={null}
+        payload={previewPayload}
+      />
+    </>
   );
 }

@@ -9,6 +9,11 @@ interface ExamStatsProps {
     draft: number;
     archived: number;
     totalAttempts: number;
+    modes?: {
+      practice: number;
+      mock_test: number;
+      official_exam: number;
+    };
   };
 }
 

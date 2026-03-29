@@ -53,6 +53,18 @@ export interface ExamStats {
   draft: number;
   archived: number;
   totalAttempts: number;
+  modes?: {
+    practice: number;
+    mock_test: number;
+    official_exam: number;
+  };
+}
+
+export interface ExamPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export type ExamStatus = "all" | "published" | "draft" | "archived";

@@ -22,8 +22,11 @@ export interface ExamTemplate {
 }
 
 export const examApi = {
-  getAll: (params?: { status?: string; type?: string; search?: string }) =>
+  getAll: (params?: { status?: string; mode?: string; keyword?: string; page?: number; limit?: number }) =>
     apiClient.admin.examTemplate.list(params),
+
+  getStats: () =>
+    apiClient.admin.examTemplate.stats(),
 
   getById: (id: string) =>
     apiClient.admin.examTemplate.get(id),

@@ -529,6 +529,133 @@ a {
   color: #cbd5e1;
 }
 
+/* Ngân hàng câu hỏi — badge trạng thái / độ khó (cùng ngôn ngữ với status-chip users) */
+.qg-status,
+.qg-level {
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Trạng thái nhóm — light */
+.qg-status--draft {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.qg-status--in_review {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.qg-status--approved {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+.qg-status--published {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+.qg-status--archived {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+.qg-status--default {
+  background: #edf1f7;
+  border-color: #d6dce7;
+  color: #5f6d85;
+}
+
+/* Độ khó — light */
+.qg-level--easy {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+.qg-level--medium {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.qg-level--hard {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.qg-level--expert {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+.qg-level--default {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+/* Trạng thái nhóm — dark (không dùng nền pastel chói) */
+.admin-dark .qg-status--draft {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fcd34d;
+}
+.admin-dark .qg-status--in_review {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #93c5fd;
+}
+.admin-dark .qg-status--approved {
+  background: rgba(167, 139, 250, 0.14);
+  border-color: rgba(196, 181, 253, 0.35);
+  color: #d8b4fe;
+}
+.admin-dark .qg-status--published {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(74, 222, 128, 0.35);
+  color: #86efac;
+}
+.admin-dark .qg-status--archived {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+.admin-dark .qg-status--default {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+
+/* Độ khó — dark */
+.admin-dark .qg-level--easy {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(74, 222, 128, 0.32);
+  color: #86efac;
+}
+.admin-dark .qg-level--medium {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fcd34d;
+}
+.admin-dark .qg-level--hard {
+  background: rgba(244, 63, 94, 0.14);
+  border-color: rgba(251, 113, 133, 0.35);
+  color: #fda4af;
+}
+.admin-dark .qg-level--expert {
+  background: rgba(167, 139, 250, 0.14);
+  border-color: rgba(196, 181, 253, 0.35);
+  color: #d8b4fe;
+}
+.admin-dark .qg-level--default {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+
 .admin-dark .stat-icon-tone {
   background-color: var(--stat-icon-dark-bg) !important;
 }
@@ -644,4 +771,193 @@ a {
 .admin-dark .workflow-banner-exams .workflow-step-connector-glow {
   background: #ffbf2f !important;
   opacity: 0.32 !important;
+}
+
+/* ─── Xem trước đề thi ─── */
+.exam-preview-surface {
+  color-scheme: light;
+}
+
+.exam-preview-surface .ep-text-primary {
+  color: #0f172a;
+}
+
+.exam-preview-surface .ep-bg-section {
+  background-color: #fafbfc;
+}
+
+.exam-preview-surface .ep-bg-instructions {
+  background-color: #f8fafc;
+}
+
+.exam-preview-body {
+  background-color: #eef2f6;
+  color: #0f172a;
+}
+
+/* Admin dark: modal đồng bộ nền xanh — không còn khối trắng lệch theme */
+.admin-dark .exam-preview-surface {
+  color-scheme: dark;
+  background-color: var(--admin-surface-2) !important;
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55) !important;
+}
+
+.admin-dark .exam-preview-surface .ep-text-primary {
+  color: var(--admin-text) !important;
+}
+
+.admin-dark .exam-preview-surface .exam-preview-body {
+  background-color: var(--admin-bg) !important;
+  color: var(--admin-text) !important;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.exam-preview-surface .exam-preview-audio {
+  color-scheme: light;
+}
+
+.admin-dark .exam-preview-surface .exam-preview-audio {
+  color-scheme: dark;
+}
+
+.admin-dark .exam-preview-surface .bg-white,
+.admin-dark .exam-preview-surface .bg-white\/90 {
+  background-color: var(--admin-surface) !important;
+}
+
+.admin-dark .exam-preview-surface .ep-bg-section {
+  background-color: rgba(26, 34, 58, 0.65) !important;
+}
+
+.admin-dark .exam-preview-surface .ep-bg-instructions {
+  background-color: rgba(32, 42, 69, 0.55) !important;
+}
+
+.admin-dark .exam-preview-surface .border-slate-100,
+.admin-dark .exam-preview-surface .border-slate-200,
+.admin-dark .exam-preview-surface .border-slate-200\/80,
+.admin-dark .exam-preview-surface .border-slate-200\/90 {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-dark .exam-preview-surface .text-gray-900,
+.admin-dark .exam-preview-surface .text-gray-800,
+.admin-dark .exam-preview-surface .text-gray-700,
+.admin-dark .exam-preview-surface .text-slate-900,
+.admin-dark .exam-preview-surface .text-slate-800,
+.admin-dark .exam-preview-surface .text-slate-700 {
+  color: var(--admin-text) !important;
+}
+
+.admin-dark .exam-preview-surface .text-slate-600 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-dark .exam-preview-surface .text-slate-500 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-dark .exam-preview-surface .text-slate-400,
+.admin-dark .exam-preview-surface .text-slate-300 {
+  color: rgba(155, 168, 205, 0.75) !important;
+}
+
+.admin-dark .exam-preview-surface .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+.admin-dark .exam-preview-surface .text-blue-700 {
+  color: #bfdbfe !important;
+}
+
+.admin-dark .exam-preview-surface .bg-blue-600 {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+.admin-dark .exam-preview-surface .bg-slate-900 {
+  background-color: #111c33 !important;
+  color: #f1f5f9 !important;
+}
+
+.admin-dark .exam-preview-surface .bg-slate-100 {
+  background-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+.admin-dark .exam-preview-surface .text-slate-800 {
+  color: var(--admin-text) !important;
+}
+
+.admin-dark .exam-preview-surface .border-emerald-200,
+.admin-dark .exam-preview-surface .border-emerald-200\/80 {
+  border-color: rgba(52, 211, 153, 0.4) !important;
+}
+
+.admin-dark .exam-preview-surface .bg-emerald-50,
+.admin-dark .exam-preview-surface .bg-emerald-50\/90 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+.admin-dark .exam-preview-surface .text-emerald-900 {
+  color: #a7f3d0 !important;
+}
+
+.admin-dark .exam-preview-surface .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+.admin-dark .exam-preview-surface .border-amber-200,
+.admin-dark .exam-preview-surface .border-amber-200\/90 {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
+.admin-dark .exam-preview-surface .bg-amber-50,
+.admin-dark .exam-preview-surface .bg-amber-50\/90 {
+  background-color: rgba(251, 191, 36, 0.1) !important;
+}
+
+.admin-dark .exam-preview-surface .border-amber-300 {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
+.admin-dark .exam-preview-surface .hover\:text-slate-900:hover {
+  color: var(--admin-text) !important;
+}
+
+.admin-dark .exam-preview-surface .text-amber-950 {
+  color: #fde68a !important;
+}
+
+.admin-dark .exam-preview-surface .text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+.admin-dark .exam-preview-surface .hover\:bg-slate-100:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.admin-dark .exam-preview-surface .hover\:bg-slate-50\/80:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.admin-dark .exam-preview-surface .hover\:border-slate-300:hover {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+.admin-dark .exam-preview-surface .ring-slate-100\/80 {
+  --tw-ring-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+.admin-dark .exam-preview-surface .shadow-slate-200\/50 {
+  --tw-shadow-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.admin-dark .exam-preview-surface .text-red-800 {
+  color: #fecaca !important;
+}
+
+.admin-dark .exam-preview-surface .border-red-200 {
+  border-color: rgba(248, 113, 113, 0.4) !important;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Clock,
   ChevronLeft,
@@ -15,55 +15,13 @@ import {
   BookOpen,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { useAuth } from "@/hooks/useAuth";
-
-interface Question {
-  id: string;
-  questionNumber?: number;
-  content: string;
-  options?: { key: string; text: string }[];
-  audioUrl?: string;
-  imageUrl?: string;
-  part?: string;
-}
-
-interface QuestionGroup {
-  id: string;
-  title?: string;
-  part?: string;
-  questions: Question[];
-  audioUrl?: string;
-  imageUrl?: string;
-  passage?: string;
-}
-
-interface ExamSection {
-  id: string;
-  name: string;
-  questionGroups: QuestionGroup[];
-}
-
-interface AttemptData {
-  id: string;
-  examTemplateId: string;
-  status: string;
-  startedAt: string;
-  timeLimitSec?: number;
-  sections?: ExamSection[];
-  savedAnswers?: Record<string, string>;
-}
-
-interface ResultData {
-  attemptId: string;
-  totalScore?: number;
-  listeningScore?: number;
-  readingScore?: number;
-  totalQuestions?: number;
-  correctAnswers?: number;
-  accuracy?: number;
-  timeTakenSec?: number;
-  answers?: { questionId: string; selectedOptionKey: string; isCorrect: boolean; correctOptionKey: string }[];
-}
+import {
+  mapAttemptResultToMockExam,
+  mapAttemptSessionToMockExam,
+  type MockExamAttemptView,
+  type MockExamQuestion,
+  type MockExamResultView,
+} from "@/lib/learner-exam-adapter";
 
 type PageState = "loading" | "exam" | "submitting" | "result" | "error";
 
@@ -72,12 +30,12 @@ export default function MockTestExamPage() {
   const router = useRouter();
 
   const [pageState, setPageState] = useState<PageState>("loading");
-  const [attempt, setAttempt] = useState<AttemptData | null>(null);
-  const [result, setResult] = useState<ResultData | null>(null);
+  const [attempt, setAttempt] = useState<MockExamAttemptView | null>(null);
+  const [result, setResult] = useState<MockExamResultView | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Flatten all questions for navigation
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allQuestions, setAllQuestions] = useState<MockExamQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
@@ -87,35 +45,38 @@ export default function MockTestExamPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedRef = useRef<Record<string, string>>({});
+  const submittingRef = useRef(false);
+  const answersRef = useRef<Record<string, string>>({});
+  const submitRef = useRef<(autoSubmit?: boolean) => void>(() => {});
+
+  const clearTimerInterval = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const clearAutoSaveInterval = () => {
+    if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+  };
 
   // Start attempt
   useEffect(() => {
     const start = async () => {
       try {
         const res = await apiClient.learner.examAttempt.start({ examTemplateId: id });
-        if (!res.data) throw new Error(res.message || "Không thể bắt đầu bài thi");
+        const mapped = mapAttemptSessionToMockExam(res.data);
+        setAttempt(mapped.attemptData);
+        setAllQuestions(mapped.questions);
+        setAnswers(mapped.savedAnswers);
+        answersRef.current = mapped.savedAnswers;
+        lastSavedRef.current = mapped.savedAnswers;
 
-        const attemptData = res.data as AttemptData;
-        setAttempt(attemptData);
-
-        // Flatten questions
-        const questions: Question[] = [];
-        attemptData.sections?.forEach((section) => {
-          section.questionGroups?.forEach((group) => {
-            group.questions?.forEach((q) => questions.push(q));
-          });
-        });
-        setAllQuestions(questions);
-
-        // Restore saved answers
-        if (attemptData.savedAnswers) {
-          setAnswers(attemptData.savedAnswers);
-          lastSavedRef.current = attemptData.savedAnswers;
-        }
-
-        // Set timer
-        if (attemptData.timeLimitSec) {
-          setTimeLeft(attemptData.timeLimitSec);
+        // Timer = totalDurationSec - elapsedSinceStartedAt
+        if (mapped.attemptData.totalDurationSec && mapped.attemptData.startedAt) {
+          const startedAt = new Date(mapped.attemptData.startedAt).getTime();
+          const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+          const remaining = Math.max(0, mapped.attemptData.totalDurationSec - elapsed);
+          setTimeLeft(remaining);
+        } else {
+          setTimeLeft(null);
         }
 
         setPageState("exam");
@@ -127,35 +88,28 @@ export default function MockTestExamPage() {
     start();
   }, [id]);
 
+  // Keep ref in sync to avoid stale data in interval callbacks
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
   // Countdown timer
   useEffect(() => {
     if (pageState !== "exam" || timeLeft === null) return;
+    if (timeLeft <= 0) return;
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev === null || prev <= 1) {
-          clearInterval(timerRef.current!);
-          handleSubmit(true);
+          clearTimerInterval();
+          clearAutoSaveInterval();
+          submitRef.current(true);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timerRef.current!);
-  }, [pageState]);
-
-  // Auto-save every 30s
-  useEffect(() => {
-    if (pageState !== "exam" || !attempt) return;
-    autoSaveRef.current = setInterval(() => {
-      const changed = Object.entries(answers).filter(
-        ([qId, ans]) => lastSavedRef.current[qId] !== ans
-      );
-      if (changed.length > 0) {
-        saveAnswers(answers);
-      }
-    }, 30000);
-    return () => clearInterval(autoSaveRef.current!);
-  }, [pageState, attempt, answers]);
+    return () => clearTimerInterval();
+  }, [pageState, timeLeft]);
 
   const saveAnswers = useCallback(
     async (currentAnswers: Record<string, string>) => {
@@ -176,32 +130,61 @@ export default function MockTestExamPage() {
     [attempt]
   );
 
+  // Auto-save every 30s
+  useEffect(() => {
+    if (pageState !== "exam" || !attempt?.id) return;
+    autoSaveRef.current = setInterval(() => {
+      const currentAnswers = answersRef.current;
+      const changed = Object.entries(currentAnswers).filter(
+        ([qId, ans]) => lastSavedRef.current[qId] !== ans
+      );
+      if (changed.length > 0) {
+        void saveAnswers(currentAnswers);
+      }
+    }, 30000);
+    return () => clearAutoSaveInterval();
+  }, [pageState, attempt?.id, saveAnswers]);
+
   const handleAnswer = (questionId: string, optionKey: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
+    setAnswers((prev) => {
+      const next = { ...prev, [questionId]: optionKey };
+      answersRef.current = next;
+      return next;
+    });
   };
 
-  const handleSubmit = async (autoSubmit = false) => {
+  const handleSubmit = useCallback(async (autoSubmit = false) => {
     if (!attempt) return;
+    if (submittingRef.current) return;
     if (!autoSubmit && !confirm("Bạn có chắc muốn nộp bài?")) return;
+    submittingRef.current = true;
 
-    clearInterval(timerRef.current!);
-    clearInterval(autoSaveRef.current!);
+    clearTimerInterval();
+    clearAutoSaveInterval();
     setPageState("submitting");
 
     try {
       // Save latest answers first
-      await saveAnswers(answers);
+      await saveAnswers(answersRef.current);
       // Submit
-      await apiClient.learner.examAttempt.submit(attempt.id, { metadata: { source: "submit-button" } });
+      await apiClient.learner.examAttempt.submit(attempt.id, { metadata: { source: autoSubmit ? "auto-timeout" : "submit-button" } });
       // Get result
       const resultRes = await apiClient.learner.examAttempt.getResult(attempt.id);
-      setResult(resultRes.data as ResultData);
+      setResult(mapAttemptResultToMockExam(resultRes.data));
       setPageState("result");
     } catch (err: any) {
       setErrorMsg(err.message || "Nộp bài thất bại");
       setPageState("error");
+    } finally {
+      submittingRef.current = false;
     }
-  };
+  }, [attempt, saveAnswers]);
+
+  useEffect(() => {
+    submitRef.current = (autoSubmit = false) => {
+      void handleSubmit(autoSubmit);
+    };
+  }, [handleSubmit]);
 
   const formatTime = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -379,6 +362,11 @@ export default function MockTestExamPage() {
 
               {/* Question content */}
               <div className="bg-white rounded-xl p-5 border border-gray-200 mb-4">
+                {currentQuestion.stem && (
+                  <p className="mb-3 whitespace-pre-line rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                    {currentQuestion.stem}
+                  </p>
+                )}
                 <p className="text-gray-800 font-medium leading-relaxed">
                   {currentQuestion.content}
                 </p>
