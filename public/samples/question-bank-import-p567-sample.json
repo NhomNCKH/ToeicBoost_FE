@@ -1,0 +1,177 @@
+{
+  "groups": [
+    {
+      "code": "IMPORT-DEMO-P5-001",
+      "title": "[Demo Import] Part 5 — Incomplete Sentences",
+      "part": "P5",
+      "level": "medium",
+      "status": "draft",
+      "explanation": "Bộ câu mẫu Part 5: mỗi câu là một câu chưa hoàn chỉnh, chọn đáp án đúng nhất.",
+      "sourceType": "json_import",
+      "sourceRef": "demo-p5-v1",
+      "questions": [
+        {
+          "questionNo": 1,
+          "prompt": "The quarterly report ------- by the finance team before Friday's board meeting.",
+          "answerKey": "B",
+          "rationale": "Passive voice: must be completed (past participle).",
+          "options": [
+            { "optionKey": "A", "content": "must complete", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "must be completed", "isCorrect": true, "sortOrder": 2 },
+            { "optionKey": "C", "content": "must completing", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "must have completed", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 2,
+          "prompt": "Ms. Rivera ------- the contract after reviewing the final terms with legal counsel.",
+          "answerKey": "C",
+          "rationale": "Past simple for a completed action.",
+          "options": [
+            { "optionKey": "A", "content": "signs", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "is signing", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "signed", "isCorrect": true, "sortOrder": 3 },
+            { "optionKey": "D", "content": "will have been signing", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 3,
+          "prompt": "Applicants are required to submit all documents ------- the deadline stated in the job posting.",
+          "answerKey": "D",
+          "rationale": "By + time = not later than.",
+          "options": [
+            { "optionKey": "A", "content": "except", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "among", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "within", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "by", "isCorrect": true, "sortOrder": 4 }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "IMPORT-DEMO-P6-001",
+      "title": "[Demo Import] Part 6 — Text Completion (passage)",
+      "part": "P6",
+      "level": "medium",
+      "status": "draft",
+      "stem": "The following memo is addressed to all branch managers.\n\nTo: All Branch Managers\nFrom: Operations, Head Office\nDate: March 15\nRe: Inventory audit\n\nPlease note that the annual inventory audit will take place during the week of April 8. Each branch must submit its preliminary stock report ------- (1) ------- March 25. Late submissions may delay the consolidation process.\n\nWe also remind you that any discrepancies ------- (2) ------- than five percent must be documented with supporting invoices. Branch supervisors are expected to ------- (3) ------- their teams before the audit begins so that counting procedures are consistent.\n\nFinally, the final audit summary will be ------- (4) ------- to regional directors by May 10. Thank you for your cooperation.",
+      "explanation": "Part 6: một đoạn văn chung (stem); mỗi câu tương ứng một chỗ trống trong ngữ cảnh.",
+      "sourceType": "json_import",
+      "sourceRef": "demo-p6-v1",
+      "questions": [
+        {
+          "questionNo": 1,
+          "prompt": "Blank (1): Each branch must submit its preliminary stock report ______ March 25.",
+          "answerKey": "A",
+          "options": [
+            { "optionKey": "A", "content": "no later than", "isCorrect": true, "sortOrder": 1 },
+            { "optionKey": "B", "content": "as long as", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "in case", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "even though", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 2,
+          "prompt": "Blank (2): Any discrepancies ______ than five percent must be documented.",
+          "answerKey": "B",
+          "options": [
+            { "optionKey": "A", "content": "greatest", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "greater", "isCorrect": true, "sortOrder": 2 },
+            { "optionKey": "C", "content": "greatly", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "greatness", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 3,
+          "prompt": "Blank (3): Branch supervisors are expected to ______ their teams before the audit begins.",
+          "answerKey": "A",
+          "options": [
+            { "optionKey": "A", "content": "brief", "isCorrect": true, "sortOrder": 1 },
+            { "optionKey": "B", "content": "briefing", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "briefly", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "briefs", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 4,
+          "prompt": "Blank (4): The final audit summary will be ______ to regional directors by May 10.",
+          "answerKey": "C",
+          "options": [
+            { "optionKey": "A", "content": "forward", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "forwarding", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "forwarded", "isCorrect": true, "sortOrder": 3 },
+            { "optionKey": "D", "content": "forwards", "isCorrect": false, "sortOrder": 4 }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "IMPORT-DEMO-P7-001",
+      "title": "[Demo Import] Part 7 — Reading Comprehension",
+      "part": "P7",
+      "level": "hard",
+      "status": "draft",
+      "stem": "The following article appeared in a business newsletter in March.\n\n**GreenLine Logistics Expands Regional Network**\n\nGreenLine Logistics announced yesterday that it will open three new distribution hubs in the northern region over the next eighteen months. According to CEO Elena Park, the expansion responds to sustained growth in e-commerce deliveries and requests from several retail partners for shorter lead times.\n\nThe first hub, scheduled to open in September, will be located near the coastal highway to reduce transfer delays from port facilities. The company expects to hire approximately 120 warehouse staff and invest in automated sorting equipment. Park emphasized that environmental standards will guide site design, including solar panels and rainwater collection systems.\n\nIndustry analysts note that competitors have also increased capacity, which could intensify price competition. However, GreenLine believes its integrated tracking platform and long-term contracts with manufacturers will help maintain margins. Shareholders will receive a detailed progress report at the annual meeting in June.",
+      "explanation": "Part 7: đoạn đọc dài (stem) + nhiều câu hỏi hiểu ý.",
+      "sourceType": "json_import",
+      "sourceRef": "demo-p7-v1",
+      "questions": [
+        {
+          "questionNo": 1,
+          "prompt": "What is the main purpose of the article?",
+          "answerKey": "B",
+          "options": [
+            { "optionKey": "A", "content": "To criticize delays in port operations", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "To report on a company's expansion plans", "isCorrect": true, "sortOrder": 2 },
+            { "optionKey": "C", "content": "To announce the resignation of the CEO", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "To compare solar energy costs across regions", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 2,
+          "prompt": "According to the article, why is GreenLine expanding?",
+          "answerKey": "C",
+          "options": [
+            { "optionKey": "A", "content": "Because port fees have decreased", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "Because the government required new hubs", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "Because of e-commerce growth and partner demand", "isCorrect": true, "sortOrder": 3 },
+            { "optionKey": "D", "content": "Because shareholders voted against automation", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 3,
+          "prompt": "Where will the first new hub be located?",
+          "answerKey": "A",
+          "options": [
+            { "optionKey": "A", "content": "Near the coastal highway", "isCorrect": true, "sortOrder": 1 },
+            { "optionKey": "B", "content": "In the city center", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "Next to the annual meeting venue", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "At the headquarters only", "isCorrect": false, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 4,
+          "prompt": "What does the article suggest about competitors?",
+          "answerKey": "D",
+          "options": [
+            { "optionKey": "A", "content": "They are leaving the logistics industry", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "They refuse to use tracking software", "isCorrect": false, "sortOrder": 2 },
+            { "optionKey": "C", "content": "They have merged with GreenLine", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "They have also increased capacity", "isCorrect": true, "sortOrder": 4 }
+          ]
+        },
+        {
+          "questionNo": 5,
+          "prompt": "When will shareholders receive a detailed progress report?",
+          "answerKey": "B",
+          "options": [
+            { "optionKey": "A", "content": "In March", "isCorrect": false, "sortOrder": 1 },
+            { "optionKey": "B", "content": "At the annual meeting in June", "isCorrect": true, "sortOrder": 2 },
+            { "optionKey": "C", "content": "When the first hub opens in September", "isCorrect": false, "sortOrder": 3 },
+            { "optionKey": "D", "content": "After eighteen months of operations", "isCorrect": false, "sortOrder": 4 }
+          ]
+        }
+      ]
+    }
+  ]
+}

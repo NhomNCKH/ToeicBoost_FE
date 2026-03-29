@@ -1,223 +1,276 @@
-'use client';
+// app/student/layout.tsx
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Mic, 
-  Award, 
-  User, 
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  LayoutDashboard,
+  BookOpen,
+  PenTool,
+  Mic,
+  FileText,
+  Award,
+  User,
   LogOut,
   GraduationCap,
-  Shield
-} from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Home,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  Sparkles,
+  Target,
+  Clock,
+  TrendingUp,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/lib/api-client";
+import { getSignedMediaUrl } from "@/lib/media-url";
 
 export default function StudentLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
 
-  // Kiểm tra xác thực - LUÔN GỌI useEffect TRƯỚC
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push('/');
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login");
     }
-    // Nếu đã đăng nhập nhưng không phải học viên (có thể là admin)
-    if (!loading && user && user.role !== 'learner') {
-      router.push('/admin/dashboard');
+  }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        const response = await apiClient.auth.getAvatar();
+        const avatarData = response.data;
+        const signedAvatarUrl = avatarData?.s3Key
+          ? await getSignedMediaUrl(avatarData.s3Key)
+          : avatarData?.avatarUrl ?? "";
+        setAvatarUrl(signedAvatarUrl ?? "");
+      } catch {
+        setAvatarUrl("");
+      }
+    };
+    if (isAuthenticated) {
+      fetchAvatar();
     }
-  }, [loading, isAuthenticated, user, router]);
+  }, [isAuthenticated]);
 
-  // Nếu là trang welcome, không hiển thị layout
-  if (pathname === '/student') {
-    return <>{children}</>;
-  }
-
-  // Hiển thị loading
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Nếu chưa xác thực hoặc không phải học viên, không hiển thị gì
-  if (!isAuthenticated || user?.role !== 'learner') {
-    return null;
-  }
-  
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/student/dashboard' },
-    { icon: BookOpen, label: 'Bài học', href: '/student/lessons' },
-    { icon: Mic, label: 'Luyện nói AI', href: '/student/practice' },
-    { icon: Award, label: 'Chứng chỉ', href: '/student/certificates' },
-    { icon: User, label: 'Hồ sơ', href: '/student/profile' },
+    {
+      icon: LayoutDashboard,
+      label: "Tổng quan",
+      href: "/student/dashboard",
+      description: "Xem tiến độ học tập",
+    },
+    {
+      icon: BookOpen,
+      label: "Luyện đọc",
+      href: "/student/reading",
+      description: "Luyện tập kỹ năng đọc",
+    },
+    {
+      icon: PenTool,
+      label: "Luyện viết",
+      href: "/student/writing",
+      description: "Luyện tập kỹ năng viết",
+    },
+    {
+      icon: Mic,
+      label: "Luyện nói AI",
+      href: "/student/speaking",
+      description: "Phỏng vấn với AI",
+    },
+    {
+      icon: FileText,
+      label: "Thi thử",
+      href: "/student/mock-test",
+      description: "Làm đề thi thử",
+    },
+    {
+      icon: Award,
+      label: "Chứng chỉ",
+      href: "/student/certificates",
+      description: "Chứng chỉ blockchain",
+    },
+    {
+      icon: User,
+      label: "Hồ sơ",
+      href: "/student/profile",
+      description: "Thông tin cá nhân",
+    },
   ];
 
   const handleLogout = async () => {
     await logout();
+    router.push("/");
   };
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-      {/* Sidebar - LUÔN HIỆN */}
-      <div style={{ 
-        width: '256px', 
-        background: 'linear-gradient(to bottom, #065f46, #115e59)',
-        color: 'white',
-        position: 'fixed',
-        height: '100vh',
-        padding: '24px',
-        zIndex: 40
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            background: 'rgba(255,255,255,0.2)', 
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <GraduationCap size={24} color="white" />
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>EduChain</div>
-            <div style={{ fontSize: '12px', color: '#a7f3d0' }}>Học viên</div>
-          </div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-emerald-600">Đang tải...</p>
         </div>
-
-        {/* Hiển thị tên user */}
-        <div style={{
-          padding: '12px 16px',
-          marginBottom: '24px',
-          background: 'rgba(255,255,255,0.1)',
-          borderRadius: '12px',
-          fontSize: '14px'
-        }}>
-          <div style={{ color: '#d1fae5' }}>Xin chào,</div>
-          <div style={{ fontWeight: 'bold' }}>{user?.name || 'Học viên'}</div>
-          <div style={{ fontSize: '12px', color: '#a7f3d0', marginTop: '4px' }}>
-            {user?.email}
-          </div>
-        </div>
-
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  color: isActive ? 'white' : '#d1fae5',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <item.icon size={20} />
-                <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
-              </Link>
-            );
-          })}
-
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              color: '#d1fae5',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              marginTop: '32px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <LogOut size={20} />
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>Đăng xuất</span>
-          </button>
-        </nav>
       </div>
+    );
+  }
 
-      {/* Main content */}
-      <div style={{ marginLeft: '256px', width: '100%' }}>
-        <header style={{
-          background: 'white',
-          borderBottom: '1px solid #e5e7eb',
-          padding: '16px 24px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 30
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1f2937' }}>
-              {menuItems.find(item => item.href === pathname)?.label || 'Dashboard'}
-            </h2>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                background: '#d1fae5',
-                borderRadius: '9999px'
-              }}>
-                <Shield size={16} color="#047857" />
-                <span style={{ fontSize: '12px', fontWeight: '500', color: '#047857' }}>Học viên</span>
+  if (!isAuthenticated) return null;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileMenuOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
+      >
+        <Menu className="w-6 h-6 text-emerald-600" />
+      </button>
+
+      {/* Sidebar Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{
+          width: sidebarCollapsed ? "80px" : "280px",
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={`fixed left-0 top-0 h-full bg-gradient-to-b from-emerald-800 to-teal-800 shadow-2xl z-40 ${
+          mobileMenuOpen ? "block" : "hidden lg:block"
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          {/* Logo */}
+          <div className="p-6 border-b border-emerald-700/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              
-              <div style={{
-                width: '32px',
-                height: '32px',
-                background: '#059669',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                {user?.name?.charAt(0) || 'HV'}
-              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <div className="text-white font-bold text-xl">EduChain</div>
+                  <div className="text-emerald-300 text-xs">Học viên</div>
+                </div>
+              )}
             </div>
           </div>
-        </header>
 
-        <div style={{ padding: '24px' }}>
+          {/* User Info */}
+          <div className="p-4 border-b border-emerald-700/50">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img
+                  src={avatarUrl || "https://ui-avatars.com/api/?name=" + (user?.name || "User")}
+                  alt="avatar"
+                  className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400"
+                  onError={(e) => {
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${user?.name || "User"}&background=10b981&color=fff`;
+                  }}
+                />
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-emerald-800" />
+              </div>
+              {!sidebarCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">{user?.name}</p>
+                  <p className="text-emerald-300 text-xs truncate">{user?.email}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 py-6 overflow-y-auto">
+            <div className="px-3 space-y-1">
+              {menuItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                      isActive
+                        ? "bg-white/20 text-white shadow-lg"
+                        : "text-emerald-100 hover:bg-white/10"
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 ${isActive ? "text-white" : ""}`} />
+                    {!sidebarCollapsed && (
+                      <div className="flex-1">
+                        <span className="text-sm font-medium">{item.label}</span>
+                        <p className="text-xs text-emerald-300/70 truncate">
+                          {item.description}
+                        </p>
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* Footer Actions */}
+          <div className="p-4 border-t border-emerald-700/50 space-y-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex w-full items-center gap-3 px-3 py-2 rounded-xl text-emerald-100 hover:bg-white/10 transition-colors"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5" />
+              )}
+              {!sidebarCollapsed && <span className="text-sm">Thu gọn</span>}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-3 py-2 rounded-xl text-emerald-100 hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              {!sidebarCollapsed && <span className="text-sm">Đăng xuất</span>}
+            </button>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* Main Content */}
+      <main
+        className={`transition-all duration-300 ${
+          sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+        }`}
+      >
+        <div className="min-h-screen">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

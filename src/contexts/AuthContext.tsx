@@ -1,7 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api, LoginData, RegisterData, UserProfile } from '@/lib/api';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { apiClient } from '@/lib/api-client';
+import {
+  clearAuthSession,
+  getAccessTokenExpiresAt,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  getStoredUser,
+  persistAuthSession,
+} from '@/lib/auth-session';
+import type { UserProfile, LoginData, RegisterData } from '@/types/api';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -9,11 +18,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (data: LoginData) => Promise<{ success: boolean; message: string }>;
   register: (data: RegisterData) => Promise<{ success: boolean; message: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -21,146 +30,176 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  // Check if user is logged in on app start
+  const logout = useCallback(async () => {
+    try {
+      const rt = getStoredRefreshToken();
+      if (rt) await apiClient.auth.logout({ refreshToken: rt });
+    } catch {
+      // ignore logout errors
+    } finally {
+      clearAuthSession();
+      setUser(null);
+    }
+  }, []);
+
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const rt = getStoredRefreshToken();
+      if (!rt) return false;
+
+      const res = await apiClient.auth.refreshToken({ refreshToken: rt });
+      const inner = res.data?.data || (res as any).data || res;
+
+      if (inner?.accessToken) {
+        persistAuthSession(inner);
+        return true;
+      }
+      return false;
+    } catch {
+      clearAuthSession();
+      setUser(null);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
-    const checkAuth = async () => {
+    const init = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        if (!token) {
-          setIsLoading(false);
-          return;
+        const token = getStoredAccessToken();
+        const rt = getStoredRefreshToken();
+        const storedUser = getStoredUser();
+        const parsedUser = storedUser ? JSON.parse(storedUser) as UserProfile : null;
+
+        if (parsedUser) {
+          setUser(parsedUser);
         }
 
-        const response = await api.auth.getProfile();
-        if (response.statusCode === 200) {
-          setUser(response.data);
+        if (token || rt) {
+          const tokenExpiresAt = getAccessTokenExpiresAt();
+          const shouldRefreshFirst =
+            !token || !tokenExpiresAt || tokenExpiresAt <= Date.now() + 30_000;
+
+          if (shouldRefreshFirst) {
+            const refreshed = await refreshToken();
+            if (!refreshed) {
+              await logout();
+              return;
+            }
+          }
+
+          try {
+            const res = await apiClient.auth.getMe();
+            if (res.statusCode === 200 && res.data?.data) {
+              const payload = res.data.data;
+              const freshUser: UserProfile = {
+                ...(parsedUser ?? {}),
+                id: payload.sub,
+                name: parsedUser?.name ?? '',
+                email: payload.email,
+                role: payload.role,
+                permissions: payload.permissions || [],
+                status: parsedUser?.status ?? 'active',
+              };
+              setUser(freshUser);
+              localStorage.setItem('user', JSON.stringify(freshUser));
+            } else {
+              throw new Error('Session expired');
+            }
+          } catch (verifyErr) {
+            console.warn('Auth verification failed, trying refresh...', verifyErr);
+            const refreshed = await refreshToken();
+            if (!refreshed) {
+              await logout();
+              return;
+            }
+
+            const retry = await apiClient.auth.getMe();
+            const payload = retry.data?.data;
+            if (retry.statusCode === 200 && payload) {
+              const freshUser: UserProfile = {
+                ...(parsedUser ?? {}),
+                id: payload.sub,
+                name: parsedUser?.name ?? '',
+                email: payload.email,
+                role: payload.role,
+                permissions: payload.permissions || [],
+                status: parsedUser?.status ?? 'active',
+              };
+              setUser(freshUser);
+              localStorage.setItem('user', JSON.stringify(freshUser));
+            } else {
+              await logout();
+            }
+          }
         } else {
-          // Token might be expired, try refresh
-          await refreshToken();
+          setUser(null);
         }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+      } catch (e) {
+        console.error('Auth initialization error:', e);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
+    init();
+  }, [refreshToken, logout]);
 
-    checkAuth();
+  useEffect(() => {
+    const syncLogout = () => setUser(null);
+    window.addEventListener('auth:session-cleared', syncLogout);
+    return () => window.removeEventListener('auth:session-cleared', syncLogout);
   }, []);
 
   const login = async (data: LoginData) => {
+    setIsLoading(true);
     try {
-      console.log('Attempting login with:', data);
-      const response = await api.auth.login(data);
-      console.log('Login response:', response);
-      
-      if (response.statusCode === 200 && response.data.success) {
-        const { user: userData, accessToken, refreshToken } = response.data.data;
-        
-        // Store tokens
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        
-        // Set user data
-        setUser(userData);
-        
-        console.log('Login successful, user set:', userData);
-        return { success: true, message: response.data.message };
-      } else {
-        console.log('Login failed:', response);
-        return { success: false, message: response.message || 'Đăng nhập thất bại' };
+      const res = await apiClient.auth.login(data);
+
+      const inner = res.data?.data || (res as any).data || res;
+
+      if (inner?.accessToken) {
+        persistAuthSession(inner);
+        localStorage.setItem('user', JSON.stringify(inner.user));
+        setUser(inner.user);
+        return { success: true, message: res.data?.message || 'Đăng nhập thành công' };
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, message: 'Lỗi kết nối. Vui lòng thử lại.' };
+
+      return { success: false, message: res.message || 'Đăng nhập thất bại: Không tìm thấy token' };
+    } catch (err: any) {
+      const msg =
+        err.statusCode === 401 ? 'Email hoặc mật khẩu không đúng' :
+        err.statusCode === 403 ? 'Tài khoản tạm thời bị khóa. Vui lòng thử lại sau' :
+        err.message || 'Lỗi kết nối. Vui lòng thử lại.';
+      return { success: false, message: msg };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (data: RegisterData) => {
     try {
-      const response = await api.auth.register(data);
-      
-      if (response.statusCode === 201) {
-        return { success: true, message: response.data.message || 'Đăng ký thành công' };
-      } else {
-        return { success: false, message: response.message || 'Đăng ký thất bại' };
+      const res = await apiClient.auth.register(data);
+      if (res.statusCode === 201) {
+        return { success: true, message: res.data?.message || 'Đăng ký thành công' };
       }
-    } catch (error) {
-      console.error('Register error:', error);
-      return { success: false, message: 'Lỗi kết nối. Vui lòng thử lại.' };
+      return { success: false, message: res.message || 'Đăng ký thất bại' };
+    } catch (err: any) {
+      const msg =
+        err.statusCode === 409 ? 'Email đã được sử dụng' :
+        err.message || 'Lỗi kết nối. Vui lòng thử lại.';
+      return { success: false, message: msg };
     }
-  };
-
-  const logout = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        await api.auth.logout({ refreshToken });
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      // Clear local storage and state
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      setUser(null);
-    }
-  };
-
-  const refreshToken = async (): Promise<boolean> => {
-    try {
-      const refreshTokenValue = localStorage.getItem('refreshToken');
-      if (!refreshTokenValue) return false;
-
-      const response = await api.auth.refreshToken({ refreshToken: refreshTokenValue });
-      
-      if (response.statusCode === 200) {
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-        
-        localStorage.setItem('accessToken', accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem('refreshToken', newRefreshToken);
-        }
-        
-        // Get updated user profile
-        const profileResponse = await api.auth.getProfile();
-        if (profileResponse.statusCode === 200) {
-          setUser(profileResponse.data);
-        }
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      return false;
-    }
-  };
-
-  const value = {
-    user,
-    isLoading,
-    isAuthenticated,
-    login,
-    register,
-    logout,
-    refreshToken
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, login, register, logout, refreshToken }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }
