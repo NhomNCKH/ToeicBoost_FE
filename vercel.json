@@ -4,9 +4,6 @@
       "main": true
     }
   },
-  "github": {
-    "autoDeployment": false
-  },
   "builds": [
     {
       "src": "package.json",

@@ -41,8 +41,11 @@ function getBaseURL(): string {
     return localApiBase;
   }
 
-  // Fallback an toàn
-  return 'http://144.91.104.237:3001/api/v1';
+  if (process.env.NODE_ENV === 'production') {
+    return '/api/proxy/api/v1';
+  }
+
+  return 'http://localhost:3001/api/v1';
 }
 
 function getHealthURL(): string {
@@ -51,7 +54,7 @@ function getHealthURL(): string {
   const base =
     (apiUrl && apiUrl.trim() !== '' && apiUrl) ||
     (process.env.NODE_ENV !== 'production' && localApiUrl && localApiUrl.trim() !== '' ? localApiUrl : '') ||
-    'http://144.91.104.237:3001';
+    (process.env.NODE_ENV === 'production' ? '/api/proxy' : 'http://localhost:3001');
   return `${base}/health`;
 }
 

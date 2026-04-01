@@ -1,159 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = 'http://144.91.104.237:3001';
+export const runtime = 'nodejs';
 
-export async function GET(
+function getBackendOrigin() {
+  const origin =
+    process.env.BACKEND_ORIGIN ||
+    process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
+    'http://144.91.104.237';
+
+  return origin.endsWith('/') ? origin.slice(0, -1) : origin;
+}
+
+function buildTargetUrl(request: NextRequest, path: string[]) {
+  const pathname = path.join('/');
+  const searchParams = request.nextUrl.searchParams.toString();
+  const search = searchParams ? `?${searchParams}` : '';
+
+  return `${getBackendOrigin()}/${pathname}${search}`;
+}
+
+function buildProxyHeaders(request: NextRequest) {
+  const headers = new Headers();
+
+  const headerNames = [
+    'authorization',
+    'content-type',
+    'accept',
+    'cookie',
+    'user-agent',
+    'x-requested-with',
+  ];
+
+  for (const name of headerNames) {
+    const value = request.headers.get(name);
+
+    if (value) {
+      headers.set(name, value);
+    }
+  }
+
+  return headers;
+}
+
+async function proxyRequest(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  params: { path: string[] },
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
 ) {
   try {
-    const path = params.path.join('/');
-    const searchParams = request.nextUrl.searchParams.toString();
-    const url = `${BACKEND_URL}/${path}${searchParams ? `?${searchParams}` : ''}`;
-    
+    const url = buildTargetUrl(request, params.path);
+    const body =
+      method === 'GET' || method === 'DELETE'
+        ? undefined
+        : Buffer.from(await request.arrayBuffer());
+
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        // Forward authorization header if present
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
-        })
-      },
+      method,
+      headers: buildProxyHeaders(request),
+      body,
     });
 
-    const data = await response.json();
-    
-    return NextResponse.json(data, { 
+    const responseHeaders = new Headers();
+    const contentType = response.headers.get('content-type');
+    const cacheControl = response.headers.get('cache-control');
+
+    if (contentType) {
+      responseHeaders.set('content-type', contentType);
+    }
+
+    if (cacheControl) {
+      responseHeaders.set('cache-control', cacheControl);
+    }
+
+    responseHeaders.set('x-toeic-proxy-origin', getBackendOrigin());
+
+    const data = await response.arrayBuffer();
+
+    return new NextResponse(data, {
       status: response.status,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { path: string[] } }
+) {
+  return proxyRequest(request, params, 'GET');
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
-  try {
-    const path = params.path.join('/');
-    const body = await request.text();
-    const url = `${BACKEND_URL}/${path}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
-        })
-      },
-      body,
-    });
-
-    const data = await response.json();
-    
-    return NextResponse.json(data, { 
-      status: response.status,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  return proxyRequest(request, params, 'POST');
 }
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
-  try {
-    const path = params.path.join('/');
-    const body = await request.text();
-    const url = `${BACKEND_URL}/${path}`;
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
-        })
-      },
-      body,
-    });
+  return proxyRequest(request, params, 'PUT');
+}
 
-    const data = await response.json();
-    
-    return NextResponse.json(data, { 
-      status: response.status,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { path: string[] } }
+) {
+  return proxyRequest(request, params, 'PATCH');
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
-  try {
-    const path = params.path.join('/');
-    const url = `${BACKEND_URL}/${path}`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(request.headers.get('authorization') && {
-          'Authorization': request.headers.get('authorization')!
-        })
-      },
-    });
-
-    const data = await response.json();
-    
-    return NextResponse.json(data, { 
-      status: response.status,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
-    });
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  return proxyRequest(request, params, 'DELETE');
 }
 
 export async function OPTIONS() {
@@ -161,8 +129,9 @@ export async function OPTIONS() {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'x-toeic-proxy-origin': getBackendOrigin(),
     },
   });
 }
