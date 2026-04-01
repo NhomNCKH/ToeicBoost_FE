@@ -58,7 +58,7 @@ export default function StudentLayout({
         const avatarData = response.data;
         const signedAvatarUrl = avatarData?.s3Key
           ? await getSignedMediaUrl(avatarData.s3Key)
-          : avatarData?.avatarUrl ?? "";
+          : (avatarData?.avatarUrl ?? "");
         setAvatarUrl(signedAvatarUrl ?? "");
       } catch {
         setAvatarUrl("");
@@ -187,7 +187,10 @@ export default function StudentLayout({
             <div className="flex items-center gap-3">
               <div className="relative">
                 <img
-                  src={avatarUrl || "https://ui-avatars.com/api/?name=" + (user?.name || "User")}
+                  src={
+                    avatarUrl ||
+                    "https://ui-avatars.com/api/?name=" + (user?.name || "User")
+                  }
                   alt="avatar"
                   className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400"
                   onError={(e) => {
@@ -198,8 +201,12 @@ export default function StudentLayout({
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium truncate">{user?.name}</p>
-                  <p className="text-emerald-300 text-xs truncate">{user?.email}</p>
+                  <p className="text-white font-medium truncate">
+                    {user?.name}
+                  </p>
+                  <p className="text-emerald-300 text-xs truncate">
+                    {user?.email}
+                  </p>
                 </div>
               )}
             </div>
@@ -221,10 +228,14 @@ export default function StudentLayout({
                         : "text-emerald-100 hover:bg-white/10"
                     }`}
                   >
-                    <item.icon className={`w-5 h-5 ${isActive ? "text-white" : ""}`} />
+                    <item.icon
+                      className={`w-5 h-5 ${isActive ? "text-white" : ""}`}
+                    />
                     {!sidebarCollapsed && (
                       <div className="flex-1">
-                        <span className="text-sm font-medium">{item.label}</span>
+                        <span className="text-sm font-medium">
+                          {item.label}
+                        </span>
                         <p className="text-xs text-emerald-300/70 truncate">
                           {item.description}
                         </p>
@@ -267,9 +278,7 @@ export default function StudentLayout({
           sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
         }`}
       >
-        <div className="min-h-screen">
-          {children}
-        </div>
+        <div className="min-h-screen">{children}</div>
       </main>
     </div>
   );
