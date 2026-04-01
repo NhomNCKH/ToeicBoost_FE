@@ -962,3 +962,17 @@ a {
 .admin-dark .exam-preview-surface .border-red-200 {
   border-color: rgba(248, 113, 113, 0.4) !important;
 }
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.slide-animation {
+  animation: slideIn 0.5s ease-out;
+}
