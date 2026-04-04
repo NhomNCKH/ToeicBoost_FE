@@ -102,8 +102,13 @@ function UserModal({ user, onClose, onSaved, onNotify }: UserModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <button
+        className="absolute inset-0 bg-black/50 backdrop-blur-[1.5px]"
+        onClick={onClose}
+        aria-label="close user modal"
+      />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>
             <h3 className="text-lg font-bold text-gray-800">{isEdit ? "Chỉnh sửa người dùng" : "Thêm người dùng"}</h3>
