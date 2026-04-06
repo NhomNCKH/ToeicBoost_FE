@@ -20,10 +20,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
+
+  const applyTheme = (nextTheme: Theme) => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(nextTheme);
+    root.style.colorScheme = nextTheme;
+  };
 
   useEffect(() => {
-    setMounted(true);
     const savedTheme = localStorage.getItem("theme") as Theme;
     const prefersDark = window.matchMedia(
       "(prefers-color-scheme: dark)",
@@ -31,17 +36,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
 
     setTheme(initialTheme);
-    document.documentElement.className = initialTheme;
+    applyTheme(initialTheme);
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
-    document.documentElement.className = newTheme;
+    applyTheme(newTheme);
   };
 
-  // Tránh lỗi hydration mismatch - không cần nữa vì luôn render provider
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}

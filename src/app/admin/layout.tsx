@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { isAdminRole } from "@/lib/auth/routing";
 
 type AdminMenuItem = {
   id: string;
@@ -52,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isLoading) {
       if (!isAuthenticated) {
         router.replace("/auth");
-      } else if (user && !["admin", "superadmin", "org_admin"].includes(user.role)) {
+      } else if (user && !isAdminRole(user.role)) {
         router.replace("/student/dashboard");
       }
     }
@@ -230,7 +231,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!isAuthenticated || !["admin", "superadmin", "org_admin"].includes(user?.role || "")) {
+  if (!isAuthenticated || !isAdminRole(user?.role)) {
     return null;
   }
 

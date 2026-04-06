@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { buildAuthRoute } from "@/lib/auth/routing";
 
 export default function AboutPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -266,7 +267,7 @@ export default function AboutPage() {
                 </div>
               </div>
               <Link
-                href="/register"
+                href={buildAuthRoute({ mode: "register" })}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Bắt đầu học ngay
@@ -403,7 +404,7 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-4">
               <Link
-                href="/register"
+                href={buildAuthRoute({ mode: "register" })}
                 className="px-8 py-3 bg-white text-blue-600 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Đăng ký miễn phí

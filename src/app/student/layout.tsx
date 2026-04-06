@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -35,6 +36,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import Footer from "@/components/User/Footer";
+import ThemeToggle from "@/components/User/ThemeToggle";
+import { getStoredUserProfile } from "@/lib/auth-session";
 
 export default function StudentLayout({
   children,
@@ -58,15 +61,9 @@ export default function StudentLayout({
   }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    const fetchAvatar = async () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setAvatarUrl(userData.avatarUrl || "");
-      }
-    };
     if (isAuthenticated) {
-      fetchAvatar();
+      const storedUser = getStoredUserProfile();
+      setAvatarUrl(storedUser?.avatarUrl || "");
     }
   }, [isAuthenticated]);
 
@@ -139,7 +136,7 @@ export default function StudentLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="student-theme min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-blue-600 font-medium">Đang tải...</p>
@@ -151,57 +148,73 @@ export default function StudentLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="student-theme min-h-screen bg-gray-50 transition-colors duration-300">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-transparent bg-white shadow-sm transition-colors dark:border-[#334067] dark:bg-[#18223b]">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-6">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <Link href="/student/dashboard" className="flex items-center gap-2">
-                {/* Ảnh logo */}
-                <img 
-                  src="/logo/logo_website.svg"  // Đường dẫn đến file ảnh logo
-                  alt="EduChain Logo"
-                  className="w-60 h-12.3 object-contain"
-                />
-                {/* Hoặc giữ text nếu muốn
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  EduChain
-                </span> */}
+            <div className="flex flex-none items-center">
+              <Link href="/student/dashboard" className="flex items-center">
+                <div className="relative h-10 w-[150px] sm:w-[164px] lg:w-[176px]">
+                  <Image
+                    src="/logo/logo_website.svg"
+                    alt="TOEIC Master"
+                    fill
+                    sizes="(max-width: 640px) 150px, (max-width: 1024px) 164px, 176px"
+                    className="object-contain object-left dark:hidden"
+                    priority
+                  />
+                  <Image
+                    src="/logo/logo_website_dark.svg"
+                    alt="TOEIC Master"
+                    fill
+                    sizes="(max-width: 640px) 150px, (max-width: 1024px) 164px, 176px"
+                    className="hidden object-contain object-left dark:block"
+                    priority
+                  />
+                </div>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navigationItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <button
-                    key={item.label}
-                    onClick={item.onClick || (() => router.push(item.href))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                      isActive
-                        ? "text-blue-600 bg-blue-50"
-                        : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
+            <div className="hidden min-w-0 flex-1 md:block">
+              <nav className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex min-w-max items-center gap-1 lg:gap-1.5">
+                  {navigationItems.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <button
+                        key={item.label}
+                        onClick={item.onClick || (() => router.push(item.href))}
+                        className={`group flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-all duration-200 lg:px-3 lg:text-sm ${
+                          isActive
+                            ? "bg-blue-50 text-blue-700 shadow-sm dark:bg-[#263154] dark:text-white"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0 text-current/80 transition-colors group-hover:text-current" />
+                        <span className="whitespace-nowrap">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
+            </div>
+            </div>
 
             {/* Right Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-none items-center gap-1.5 lg:gap-2">
+              <ThemeToggle />
+
               {/* Search Button */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+              <button className="hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-gray-400 shadow-sm transition-colors hover:border-blue-200 hover:text-blue-600 dark:border-[#334067] dark:bg-[#202a45] dark:text-slate-400 dark:hover:border-[#42517e] dark:hover:text-white xl:flex">
                 <Search className="w-5 h-5" />
               </button>
 
               {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors relative">
+              <button className="relative hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-gray-400 shadow-sm transition-colors hover:border-blue-200 hover:text-blue-600 dark:border-[#334067] dark:bg-[#202a45] dark:text-slate-400 dark:hover:border-[#42517e] dark:hover:text-white xl:flex">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
@@ -210,7 +223,7 @@ export default function StudentLayout({
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition-colors hover:border-blue-200 hover:bg-slate-50 dark:border-[#334067] dark:bg-[#202a45] dark:hover:border-[#42517e] dark:hover:bg-[#263154]"
                 >
                   <img
                     src={avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || "User"}&background=3b82f6&color=fff`}
@@ -220,7 +233,7 @@ export default function StudentLayout({
                       e.currentTarget.src = `https://ui-avatars.com/api/?name=${user?.name || "User"}&background=3b82f6&color=fff`;
                     }}
                   />
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                  <ChevronDown className="hidden h-4 w-4 text-gray-400 dark:text-slate-400 xl:block" />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -230,14 +243,14 @@ export default function StudentLayout({
                       className="fixed inset-0 z-40"
                       onClick={() => setShowUserMenu(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border border-gray-100">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-100 bg-white py-2 shadow-lg dark:border-[#334067] dark:bg-[#202a45]">
+                      <div className="border-b border-gray-100 px-4 py-3 dark:border-[#334067]">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{user?.name}</p>
+                        <p className="truncate text-xs text-gray-500 dark:text-slate-400">{user?.email}</p>
                       </div>
                       <Link
                         href="/student/profile"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-[#263154]"
                         onClick={() => setShowUserMenu(false)}
                       >
                         <User className="w-4 h-4" />
@@ -245,7 +258,7 @@ export default function StudentLayout({
                       </Link>
                       <Link
                         href="/student/settings"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-[#263154]"
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Settings className="w-4 h-4" />
@@ -253,16 +266,16 @@ export default function StudentLayout({
                       </Link>
                       <Link
                         href="/help"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-[#263154]"
                         onClick={() => setShowUserMenu(false)}
                       >
                         <HelpCircle className="w-4 h-4" />
                         Trợ giúp
                       </Link>
-                      <div className="border-t border-gray-100 mt-2 pt-2">
+                      <div className="mt-2 border-t border-gray-100 pt-2 dark:border-[#334067]">
                         <button
                           onClick={handleLogout}
-                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
                         >
                           <LogOut className="w-4 h-4" />
                           Đăng xuất
@@ -276,7 +289,7 @@ export default function StudentLayout({
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-400 hover:text-gray-600"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-gray-400 shadow-sm hover:text-gray-600 dark:border-[#334067] dark:bg-[#202a45] dark:text-slate-400 dark:hover:text-white md:hidden"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
@@ -292,7 +305,7 @@ export default function StudentLayout({
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed top-16 left-0 right-0 bg-white shadow-lg z-40 md:hidden">
+          <div className="fixed top-16 left-0 right-0 z-40 bg-white shadow-lg dark:bg-[#18223b] md:hidden">
             <nav className="p-4">
               {navigationItems.map((item) => {
                 const isActive = pathname === item.href;
@@ -309,8 +322,8 @@ export default function StudentLayout({
                     }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all w-full ${
                       isActive
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50"
+                        ? "bg-blue-50 text-blue-600 dark:bg-[#263154] dark:text-[#FBFB24]"
+                        : "text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-[#202a45]"
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
@@ -349,7 +362,7 @@ export default function StudentLayout({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", duration: 0.3, damping: 20 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#202a45]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -375,28 +388,28 @@ export default function StudentLayout({
                   <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <GraduationCap className="w-10 h-10 text-blue-600" />
                   </div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h4 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
                     Xác nhận đăng ký thi
                   </h4>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
                     Bạn có chắc chắn muốn đăng ký tham gia kỳ thi chứng chỉ?
                   </p>
                 </div>
 
                 {/* User Information */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
-                  <h5 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <div className="mb-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 p-4 dark:from-[#263154] dark:to-[#202a45]">
+                  <h5 className="mb-3 flex items-center gap-2 font-medium text-gray-900 dark:text-slate-100">
                     <User className="w-4 h-4 text-blue-600" />
                     Thông tin thí sinh
                   </h5>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Họ và tên:</span>
-                      <span className="font-medium text-gray-900">{user?.name}</span>
+                      <span className="text-gray-600 dark:text-slate-400">Họ và tên:</span>
+                      <span className="font-medium text-gray-900 dark:text-slate-100">{user?.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Email:</span>
-                      <span className="font-medium text-gray-900">{user?.email}</span>
+                      <span className="text-gray-600 dark:text-slate-400">Email:</span>
+                      <span className="font-medium text-gray-900 dark:text-slate-100">{user?.email}</span>
                     </div>
                   </div>
                 </div>
@@ -419,10 +432,10 @@ export default function StudentLayout({
               </div>
 
               {/* Modal Footer */}
-              <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="flex gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-[#334067] dark:bg-[#263154]">
                 <button
                   onClick={() => setShowExamModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-[#42517e] dark:text-slate-200 dark:hover:bg-[#2b365c]"
                 >
                   Hủy bỏ
                 </button>
@@ -459,26 +472,26 @@ export default function StudentLayout({
             exit={{ opacity: 0, x: 20, y: 20 }}
             className="fixed bottom-6 right-6 z-50"
           >
-            <div className="bg-white rounded-lg shadow-xl border-l-4 border-green-500 p-4 min-w-[320px]">
+            <div className="min-w-[320px] rounded-lg border-l-4 border-green-500 bg-white p-4 shadow-xl dark:bg-[#202a45]">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
                   <CheckCircle className="w-6 h-6 text-green-500" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">
+                  <h4 className="mb-1 font-semibold text-gray-900 dark:text-slate-100">
                     Đăng ký thành công!
                   </h4>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
                     Lịch thi sẽ được thông báo qua email và trong trang hồ sơ của bạn
                   </p>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  <div className="mt-3 flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
                     <Mail className="w-3 h-3" />
                     <span>{user?.email}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowSuccessToast(false)}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+                  className="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-white"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>

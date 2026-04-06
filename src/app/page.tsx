@@ -27,6 +27,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  buildAuthRoute,
+  resolvePostAuthRedirect,
+} from "@/lib/auth/routing";
 
 type CountUpNumberProps = {
   end: number;
@@ -311,7 +315,11 @@ const MockTestCard = ({ test, idx, router }: { test: any; idx: number; router: a
         if (token) {
           router.push(`/student/mock-test/${test.id}`);
         } else {
-          router.push("/auth?redirect=/student/mock-test/" + test.id);
+          router.push(
+            buildAuthRoute({
+              redirect: `/student/mock-test/${test.id}`,
+            }),
+          );
         }
       }}
       className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
@@ -331,11 +339,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      if (["admin", "superadmin", "org_admin"].includes(user.role)) {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/student/dashboard");
-      }
+      router.push(resolvePostAuthRedirect(user.role));
     }
   }, [isLoading, isAuthenticated, user, router]);
 
@@ -707,7 +711,7 @@ export default function HomePage() {
                 Đăng ký ngay hôm nay để nhận lộ trình học miễn phí và ưu đãi đặc biệt
               </p>
               <Link
-                href="/register"
+                href={buildAuthRoute({ mode: "register" })}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-xl font-semibold hover:shadow-xl transition-all transform hover:scale-105"
               >
                 Đăng ký miễn phí

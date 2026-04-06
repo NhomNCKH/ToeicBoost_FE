@@ -1,5 +1,3 @@
-// src/components/Footer.tsx
-import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Twitter, Youtube, Instagram, Mail, Phone, MapPin, Globe } from "lucide-react";
 
