@@ -346,6 +346,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const roleLabel =
     user?.role === "superadmin" ? "Super Admin" : user?.role === "org_admin" ? "Org Admin" : "Admin";
+  const isDarkTheme = theme === "dark";
+  const topbarClassName = isDarkTheme
+    ? "admin-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur"
+    : "admin-topbar sticky top-0 z-30 border-b border-blue-100 bg-white/90 backdrop-blur";
+  const pageTitleClassName = isDarkTheme
+    ? "text-base font-semibold text-slate-900 md:text-lg"
+    : "text-base font-semibold text-blue-900 md:text-lg";
+  const themeToggleButtonClassName = isDarkTheme
+    ? "inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200"
+    : "inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100";
+  const profileButtonClassName = isDarkTheme
+    ? "group flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-2 text-slate-900 transition-all duration-300 hover:bg-slate-50 hover:pr-3"
+    : "group flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 py-1.5 pl-1.5 pr-2 text-blue-900 transition-all duration-300 hover:bg-blue-100 hover:pr-3";
+  const profileAvatarClassName = isDarkTheme
+    ? "flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white"
+    : "flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white";
+  const expandedRoleLabelClassName = `flex items-center gap-1 overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ${
+    profileMenuOpen
+      ? "max-w-[120px] opacity-100"
+      : "max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100"
+  }`;
+  const roleIconClassName = isDarkTheme ? "h-3.5 w-3.5 text-slate-500" : "h-3.5 w-3.5 text-blue-600";
+  const profileMenuClassName = isDarkTheme
+    ? "absolute right-0 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
+    : "absolute right-0 mt-2 w-72 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-lg";
+  const profileMenuAvatarClassName = isDarkTheme
+    ? "flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white"
+    : "flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white";
 
   if (isLoading) {
     return (
@@ -504,85 +532,61 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </motion.aside>
 
       <main className={`admin-main transition-all duration-200 ${sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[232px]"}`}>
-        <header className="admin-topbar sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="flex h-[72px] items-center justify-between px-5 md:px-8">
-            <h1 className="text-base font-semibold text-slate-900 md:text-lg">
+        <header className={topbarClassName}>
+          <div className="flex h-[80px] items-center justify-between px-5 md:px-8">
+            <h1 className={pageTitleClassName}>
               {currentPageLabel}
             </h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200"
+                className={themeToggleButtonClassName}
                 aria-label={theme === "dark" ? "Chuyển sang light mode" : "Chuyển sang dark mode"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
               <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white py-1.5 pl-1.5 pr-2 text-slate-900 transition-colors hover:bg-slate-50"
-                aria-label="Open profile menu"
-              >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="h-8 w-8 rounded-md object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = "";
-                      setAvatarUrl("");
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+                <button
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                  className={profileButtonClassName}
+                  aria-label="Open profile menu"
+                >
+                  <div className={profileAvatarClassName}>
                     {user?.name?.charAt(0) || "A"}
                   </div>
-                )}
-                <div className="hidden items-center gap-1 whitespace-nowrap text-xs font-semibold md:flex">
-                  <Shield className="h-3.5 w-3.5 text-slate-500" />
-                  <span>{roleLabel}</span>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
+                  <div className={expandedRoleLabelClassName}>
+                    <Shield className={roleIconClassName} />
+                    <span>{roleLabel}</span>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
 
-              {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                  <div className="border-b border-slate-200 p-4">
-                    <div className="flex items-center gap-3">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt="avatar"
-                          className="h-10 w-10 rounded-md object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "";
-                            setAvatarUrl("");
-                          }}
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white">
+                {profileMenuOpen && (
+                  <div className={profileMenuClassName}>
+                    <div className="border-b border-slate-200 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={profileMenuAvatarClassName}>
                           {user?.name?.charAt(0) || "A"}
                         </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">{user?.name}</p>
-                        <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{user?.name}</p>
+                          <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                        </div>
                       </div>
                     </div>
+                    <div className="p-2">
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Đăng xuất</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-2">
-                    <button
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Đăng xuất</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
               </div>
             </div>
           </div>
